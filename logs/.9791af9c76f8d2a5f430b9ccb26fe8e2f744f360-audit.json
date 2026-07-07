@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 14
+    },
+    "auditLog": "D:\\spks backend\\SPKS-Exams-backend-\\logs\\.9791af9c76f8d2a5f430b9ccb26fe8e2f744f360-audit.json",
+    "files": [
+        {
+            "date": 1783400221554,
+            "name": "D:\\spks backend\\SPKS-Exams-backend-\\logs\\application-2026-07-07.log",
+            "hash": "bd737e40545a89dbab94e64c3220e3e5944f040b545b58f919f70fc85b66e02f"
+        }
+    ],
+    "hashType": "sha256"
+}
