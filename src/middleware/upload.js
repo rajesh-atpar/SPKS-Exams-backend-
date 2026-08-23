@@ -102,5 +102,6 @@ export const uploadProfileImage = uploadSingle('profileImage');
 // Question image upload
 export const uploadQuestionImage = uploadSingle('questionImage');
 
-// Exam PDF upload
 export const uploadExamPdf = uploadSingle('examPdf');
+export const uploadContentFile = uploadSingle('file');
+export const uploadImage = uploadSingle('image');

@@ -1,34 +1,66 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
+const PORT = process.env.PORT || 4000;
+const SERVER_URL = process.env.API_BASE_URL || `http://localhost:${PORT}`;
+const bearer = [{ bearerAuth: [] }];
+const json = (schema) => ({ content: { 'application/json': { schema } } });
+const jsonBody = (schema) => ({ required: true, content: { 'application/json': { schema } } });
+const uuidParam = (name, description) => ({
+  name,
+  in: 'path',
+  required: true,
+  schema: { type: 'string', format: 'uuid' },
+  description
+});
+
+const pageQuery = {
+  page: { type: 'integer', default: 1 },
+  limit: { type: 'integer', default: 20 },
+  search: { type: 'string' }
+};
+
+const ok = (description = 'Success') => ({
+  200: { description, ...json({ $ref: '#/components/schemas/SuccessResponse' }) }
+});
+
+const created = {
+  201: { description: 'Created', ...json({ $ref: '#/components/schemas/SuccessResponse' }) }
+};
+
 const options = {
   definition: {
-    openapi: '3.0.0',
+    openapi: '3.0.3',
     info: {
-      title: 'SPKS Exams Backend API',
-      version: '1.0.0',
-      description: 'Production-ready Online Examination System API with Supabase Auth. Complete backend for React Admin Panel and React Native Mobile App.',
+      title: 'SPKS Backend API',
+      version: '2.0.0',
+      description: 'Backend API for the SPKS mobile app and admin panel. Auth uses JWT access + refresh tokens. App users have role `user`. Staff roles are `admin`, `editor`, and `support`.'
     },
-    servers: [
-      { url: 'http://localhost:4000', description: 'Development' },
-    ],
+    servers: [{ url: SERVER_URL, description: 'Current environment' }],
     tags: [
-      { name: 'Auth', description: 'Authentication endpoints' },
-      { name: 'Admin', description: 'Admin management endpoints' },
-      { name: 'Student', description: 'Student management endpoints' },
-      { name: 'Subject', description: 'Subject management endpoints' },
-      { name: 'Exam', description: 'Exam management endpoints' },
-      { name: 'Question', description: 'Question management endpoints' },
-      { name: 'Dashboard', description: 'Dashboard statistics endpoints' },
-      { name: 'File', description: 'File upload endpoints' },
+      { name: 'Health' },
+      { name: 'App Auth' },
+      { name: 'Admin Auth' },
+      { name: 'Users' },
+      { name: 'Courses' },
+      { name: 'Catalog' },
+      { name: 'Content' },
+      { name: 'Videos' },
+      { name: 'Current Affairs' },
+      { name: 'Tests' },
+      { name: 'Payments' },
+      { name: 'Support' },
+      { name: 'Legal' },
+      { name: 'Notifications' },
+      { name: 'Admin' }
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
+          bearerFormat: 'JWT'
+        }
       },
       schemas: {
         SuccessResponse: {
@@ -36,328 +68,324 @@ const options = {
           properties: {
             success: { type: 'boolean', example: true },
             message: { type: 'string' },
-            data: { type: 'object' },
-          },
+            data: { type: 'object', nullable: true },
+            meta: {
+              type: 'object',
+              properties: {
+                page: { type: 'integer' },
+                limit: { type: 'integer' },
+                total: { type: 'integer' }
+              }
+            }
+          }
         },
         ErrorResponse: {
           type: 'object',
           properties: {
             success: { type: 'boolean', example: false },
             message: { type: 'string' },
-            data: { type: 'object', nullable: true },
-            code: { type: 'string' },
-          },
+            errors: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  field: { type: 'string' },
+                  message: { type: 'string' }
+                }
+              }
+            }
+          }
         },
-        Pagination: {
+        RegisterInput: {
           type: 'object',
+          required: ['firstName', 'lastName', 'email', 'password'],
           properties: {
-            total: { type: 'integer' },
-            page: { type: 'integer' },
-            limit: { type: 'integer' },
-            totalPages: { type: 'integer' },
-          },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            email: { type: 'string', format: 'email' },
+            phone: { type: 'string' },
+            password: { type: 'string' },
+            state: { type: 'string' }
+          }
         },
-      },
+        LoginInput: {
+          type: 'object',
+          required: ['email', 'password'],
+          properties: {
+            email: { type: 'string', format: 'email' },
+            password: { type: 'string' }
+          }
+        }
+      }
     },
     paths: {
+      '/api/health': {
+        get: { tags: ['Health'], summary: 'Health check', responses: ok() }
+      },
       '/api/auth/register': {
-        post: {
-          tags: ['Auth'],
-          summary: 'Register a new admin',
-          description: 'Creates a new admin with email and password.',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['email', 'password', 'fullName'],
-                  properties: {
-                    email: { type: 'string', format: 'email' },
-                    password: { type: 'string', minLength: 6 },
-                    fullName: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: { description: 'Admin registered successfully' },
-            400: { description: 'Validation error' },
-            409: { description: 'Admin already exists' },
-          },
-        },
+        post: { tags: ['App Auth'], summary: 'Register app user', requestBody: jsonBody({ $ref: '#/components/schemas/RegisterInput' }), responses: created }
       },
       '/api/auth/login': {
-        post: {
-          tags: ['Auth'],
-          summary: 'Login admin',
-          description: 'Authenticate admin with email and password.',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['email', 'password'],
-                  properties: {
-                    email: { type: 'string', format: 'email' },
-                    password: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: 'Login successful' },
-            401: { description: 'Invalid credentials' },
-          },
-        },
+        post: { tags: ['App Auth'], summary: 'App login', requestBody: jsonBody({ $ref: '#/components/schemas/LoginInput' }), responses: ok() }
       },
-      '/api/auth/student/register': {
-        post: {
-          tags: ['Auth'],
-          summary: 'Register a new student',
-          description: 'Creates a new student with email and password.',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['email', 'password', 'fullName'],
-                  properties: {
-                    email: { type: 'string', format: 'email' },
-                    password: { type: 'string', minLength: 6 },
-                    fullName: { type: 'string' },
-                    rollNumber: { type: 'string' },
-                    institution: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: { description: 'Student registered successfully' },
-            400: { description: 'Validation error' },
-            409: { description: 'Student already exists' },
-          },
-        },
+      '/api/auth/logout': {
+        post: { tags: ['App Auth'], security: bearer, summary: 'App logout', responses: ok() }
       },
-      '/api/auth/student/login': {
-        post: {
-          tags: ['Auth'],
-          summary: 'Login student',
-          description: 'Authenticate student with email and password.',
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['email', 'password'],
-                  properties: {
-                    email: { type: 'string', format: 'email' },
-                    password: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            200: { description: 'Login successful' },
-            401: { description: 'Invalid credentials' },
-          },
-        },
+      '/api/auth/refresh-token': {
+        post: { tags: ['App Auth'], summary: 'Refresh tokens', requestBody: jsonBody({ type: 'object', required: ['refreshToken'], properties: { refreshToken: { type: 'string' } } }), responses: ok() }
       },
-      '/api/dashboard/admin': {
-        get: {
-          tags: ['Dashboard'],
-          summary: 'Get admin dashboard stats',
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: 'Dashboard stats retrieved' },
-            401: { description: 'Unauthorized' },
-          },
-        },
+      '/api/auth/forgot-password': {
+        post: { tags: ['App Auth'], summary: 'Request password reset', requestBody: jsonBody({ type: 'object', required: ['email'], properties: { email: { type: 'string' } } }), responses: ok() }
       },
-      '/api/dashboard/student': {
-        get: {
-          tags: ['Dashboard'],
-          summary: 'Get student dashboard stats',
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: 'Dashboard stats retrieved' },
-            401: { description: 'Unauthorized' },
-          },
-        },
+      '/api/auth/reset-password': {
+        post: { tags: ['App Auth'], summary: 'Reset password', requestBody: jsonBody({ type: 'object', required: ['token', 'password'], properties: { token: { type: 'string' }, password: { type: 'string' } } }), responses: ok() }
       },
-      '/api/subjects': {
-        get: {
-          tags: ['Subject'],
-          summary: 'List all subjects',
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: 'Subjects retrieved' },
-            401: { description: 'Unauthorized' },
-          },
-        },
-        post: {
-          tags: ['Subject'],
-          summary: 'Create a new subject',
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['name', 'code'],
-                  properties: {
-                    name: { type: 'string' },
-                    code: { type: 'string' },
-                    description: { type: 'string' },
-                    category: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: { description: 'Subject created' },
-            401: { description: 'Unauthorized' },
-          },
-        },
+      '/api/auth/me': {
+        get: { tags: ['App Auth'], security: bearer, summary: 'Current app user', responses: ok() }
       },
-      '/api/exams': {
-        get: {
-          tags: ['Exam'],
-          summary: 'List all exams',
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: 'Exams retrieved' },
-            401: { description: 'Unauthorized' },
-          },
-        },
-        post: {
-          tags: ['Exam'],
-          summary: 'Create a new exam',
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['title', 'subjectId', 'durationMinutes', 'totalMarks', 'passingMarks'],
-                  properties: {
-                    title: { type: 'string' },
-                    subjectId: { type: 'string', format: 'uuid' },
-                    durationMinutes: { type: 'integer' },
-                    totalMarks: { type: 'integer' },
-                    passingMarks: { type: 'integer' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: { description: 'Exam created' },
-            401: { description: 'Unauthorized' },
-          },
-        },
+      '/api/admin/auth/login': {
+        post: { tags: ['Admin Auth'], summary: 'Staff login', requestBody: jsonBody({ $ref: '#/components/schemas/LoginInput' }), responses: ok() }
       },
-      '/api/students': {
-        get: {
-          tags: ['Student'],
-          summary: 'List all students',
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: 'Students retrieved' },
-            401: { description: 'Unauthorized' },
-          },
-        },
-        post: {
-          tags: ['Student'],
-          summary: 'Create a new student',
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['email', 'password', 'fullName'],
-                  properties: {
-                    email: { type: 'string', format: 'email' },
-                    password: { type: 'string' },
-                    fullName: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: { description: 'Student created' },
-            401: { description: 'Unauthorized' },
-          },
-        },
+      '/api/admin/auth/logout': {
+        post: { tags: ['Admin Auth'], security: bearer, summary: 'Staff logout', responses: ok() }
       },
-      '/api/questions': {
-        get: {
-          tags: ['Question'],
-          summary: 'List all questions',
-          security: [{ bearerAuth: [] }],
-          responses: {
-            200: { description: 'Questions retrieved' },
-            401: { description: 'Unauthorized' },
-          },
-        },
-        post: {
-          tags: ['Question'],
-          summary: 'Create a new question',
-          security: [{ bearerAuth: [] }],
-          requestBody: {
-            required: true,
-            content: {
-              'application/json': {
-                schema: {
-                  type: 'object',
-                  required: ['examId', 'questionText', 'questionType', 'marks', 'options'],
-                  properties: {
-                    examId: { type: 'string', format: 'uuid' },
-                    questionText: { type: 'string' },
-                    questionType: { type: 'string', enum: ['single_choice', 'multiple_choice', 'true_false', 'short_answer'] },
-                    marks: { type: 'integer' },
-                    options: {
-                      type: 'array',
-                      items: {
-                        type: 'object',
-                        properties: {
-                          optionText: { type: 'string' },
-                          isCorrect: { type: 'boolean' },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            201: { description: 'Question created' },
-            401: { description: 'Unauthorized' },
-          },
-        },
+      '/api/admin/auth/refresh-token': {
+        post: { tags: ['Admin Auth'], summary: 'Refresh staff tokens', requestBody: jsonBody({ type: 'object', required: ['refreshToken'], properties: { refreshToken: { type: 'string' } } }), responses: ok() }
       },
-    },
+      '/api/admin/auth/me': {
+        get: { tags: ['Admin Auth'], security: bearer, summary: 'Current staff user', responses: ok() }
+      },
+      '/api/users/me': {
+        get: { tags: ['Users'], security: bearer, summary: 'Get profile', responses: ok() },
+        patch: { tags: ['Users'], security: bearer, summary: 'Update profile', responses: ok() }
+      },
+      '/api/users/me/profile-image': {
+        post: { tags: ['Users'], security: bearer, summary: 'Upload profile image', responses: ok() },
+        delete: { tags: ['Users'], security: bearer, summary: 'Remove profile image', responses: ok() }
+      },
+      '/api/users/me/settings': {
+        get: { tags: ['Users'], security: bearer, summary: 'Get settings', responses: ok() },
+        patch: { tags: ['Users'], security: bearer, summary: 'Update settings', responses: ok() }
+      },
+      '/api/users/me/account': {
+        delete: { tags: ['Users'], security: bearer, summary: 'Delete account', responses: ok() }
+      },
+      '/api/users/me/bookmarks': {
+        get: { tags: ['Users'], security: bearer, summary: 'List bookmarks', responses: ok() }
+      },
+      '/api/users/me/progress': { get: { tags: ['Users'], security: bearer, summary: 'Progress', responses: ok() } },
+      '/api/users/me/course-progress': { get: { tags: ['Users'], security: bearer, summary: 'Course progress', responses: ok() } },
+      '/api/users/me/activity': { get: { tags: ['Users'], security: bearer, summary: 'Activity', responses: ok() } },
+      '/api/users/me/streak': { get: { tags: ['Users'], security: bearer, summary: 'Daily streak', responses: ok() } },
+      '/api/users/me/analytics': { get: { tags: ['Users'], security: bearer, summary: 'User analytics', responses: ok() } },
+      '/api/users/me/stats': { get: { tags: ['Users'], security: bearer, summary: 'User stats', responses: ok() } },
+      '/api/users/me/attempts': { get: { tags: ['Tests'], security: bearer, summary: 'My attempts', responses: ok() } },
+      '/api/users/me/test-history': { get: { tags: ['Tests'], security: bearer, summary: 'Test history', responses: ok() } },
+      '/api/users/me/device-token': {
+        post: { tags: ['Notifications'], security: bearer, summary: 'Save device token', responses: ok() },
+        delete: { tags: ['Notifications'], security: bearer, summary: 'Remove device token', responses: ok() }
+      },
+      '/api/courses': { get: { tags: ['Courses'], summary: 'List courses', parameters: Object.entries(pageQuery).map(([name, schema]) => ({ name, in: 'query', schema })), responses: ok() } },
+      '/api/courses/{courseId}': { get: { tags: ['Courses'], summary: 'Get course', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/groups': { get: { tags: ['Courses'], summary: 'Course groups', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/categories': { get: { tags: ['Courses'], summary: 'Course categories', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/overview': { get: { tags: ['Courses'], summary: 'Course overview', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/content': { get: { tags: ['Content'], summary: 'Course content', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/notes': { get: { tags: ['Content'], summary: 'Course notes', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/books': { get: { tags: ['Content'], summary: 'Course books', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/outside-sources': { get: { tags: ['Content'], summary: 'Outside sources', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/videos': { get: { tags: ['Videos'], summary: 'Course videos', parameters: [uuidParam('courseId')], responses: ok() } },
+      '/api/courses/{courseId}/tests': { get: { tags: ['Tests'], security: bearer, summary: 'Course tests', parameters: [uuidParam('courseId'), { name: 'groupId', in: 'query', schema: { type: 'string', format: 'uuid' } }], responses: ok() } },
+      '/api/groups/{groupId}': { get: { tags: ['Catalog'], summary: 'Get group', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/subjects': { get: { tags: ['Catalog'], summary: 'Group subjects', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/classes': { get: { tags: ['Catalog'], summary: 'Group classes', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/classes/{classId}/subjects': { get: { tags: ['Catalog'], summary: 'Class subjects', parameters: [uuidParam('classId')], responses: ok() } },
+      '/api/subjects/{subjectId}': { get: { tags: ['Catalog'], summary: 'Get subject', parameters: [uuidParam('subjectId')], responses: ok() } },
+      '/api/subjects/{subjectId}/content': { get: { tags: ['Content'], summary: 'Subject content', parameters: [uuidParam('subjectId')], responses: ok() } },
+      '/api/subjects/{subjectId}/chapters': { get: { tags: ['Catalog'], summary: 'Subject chapters', parameters: [uuidParam('subjectId')], responses: ok() } },
+      '/api/chapters/{chapterId}': { get: { tags: ['Catalog'], summary: 'Get chapter', parameters: [uuidParam('chapterId')], responses: ok() } },
+      '/api/chapters/{chapterId}/lessons': { get: { tags: ['Catalog'], summary: 'Chapter lessons', parameters: [uuidParam('chapterId')], responses: ok() } },
+      '/api/chapters/{chapterId}/content': { get: { tags: ['Content'], summary: 'Chapter content', parameters: [uuidParam('chapterId')], responses: ok() } },
+      '/api/lessons/{lessonId}': { get: { tags: ['Catalog'], summary: 'Get lesson', parameters: [uuidParam('lessonId')], responses: ok() } },
+      '/api/lessons/{lessonId}/complete': { post: { tags: ['Catalog'], security: bearer, summary: 'Complete lesson', parameters: [uuidParam('lessonId')], responses: ok() } },
+      '/api/content': { get: { tags: ['Content'], summary: 'List content', responses: ok() } },
+      '/api/content/{contentId}': { get: { tags: ['Content'], summary: 'Get content', parameters: [uuidParam('contentId')], responses: ok() } },
+      '/api/content/{contentId}/download': { get: { tags: ['Content'], security: bearer, summary: 'Download content', parameters: [uuidParam('contentId')], responses: ok() } },
+      '/api/content/{contentId}/bookmark': {
+        post: { tags: ['Content'], security: bearer, summary: 'Bookmark content', parameters: [uuidParam('contentId')], responses: created },
+        delete: { tags: ['Content'], security: bearer, summary: 'Remove content bookmark', parameters: [uuidParam('contentId')], responses: ok() }
+      },
+      '/api/videos': { get: { tags: ['Videos'], summary: 'List videos', parameters: [{ name: 'category', in: 'query', schema: { type: 'string', example: 'daily-analysis' } }], responses: ok() } },
+      '/api/videos/{videoId}': { get: { tags: ['Videos'], summary: 'Get video', parameters: [uuidParam('videoId')], responses: ok() } },
+      '/api/videos/{videoId}/view': { post: { tags: ['Videos'], security: bearer, summary: 'Record video view', parameters: [uuidParam('videoId')], responses: ok() } },
+      '/api/videos/{videoId}/bookmark': {
+        post: { tags: ['Videos'], security: bearer, summary: 'Bookmark video', parameters: [uuidParam('videoId')], responses: created },
+        delete: { tags: ['Videos'], security: bearer, summary: 'Remove video bookmark', parameters: [uuidParam('videoId')], responses: ok() }
+      },
+      '/api/current-affairs': { get: { tags: ['Current Affairs'], summary: 'List current affairs', parameters: [{ name: 'date', in: 'query', schema: { type: 'string', example: '2026-08-23' } }, { name: 'category', in: 'query', schema: { type: 'string', enum: ['state', 'india', 'international', 'others'] } }], responses: ok() } },
+      '/api/current-affairs/monthly': { get: { tags: ['Current Affairs'], summary: 'Monthly current affairs', parameters: [{ name: 'month', in: 'query', schema: { type: 'string', example: '2026-08' } }], responses: ok() } },
+      '/api/current-affairs/{articleId}': { get: { tags: ['Current Affairs'], summary: 'Get article', parameters: [uuidParam('articleId')], responses: ok() } },
+      '/api/current-affairs/{articleId}/bookmark': {
+        post: { tags: ['Current Affairs'], security: bearer, summary: 'Bookmark article', parameters: [uuidParam('articleId')], responses: created },
+        delete: { tags: ['Current Affairs'], security: bearer, summary: 'Remove article bookmark', parameters: [uuidParam('articleId')], responses: ok() }
+      },
+      '/api/tests': { get: { tags: ['Tests'], security: bearer, summary: 'List tests', responses: ok() } },
+      '/api/tests/{testId}': { get: { tags: ['Tests'], security: bearer, summary: 'Get test', parameters: [uuidParam('testId')], responses: ok() } },
+      '/api/tests/{testId}/start': { post: { tags: ['Tests'], security: bearer, summary: 'Start test', parameters: [uuidParam('testId')], responses: created } },
+      '/api/attempts/{attemptId}': { get: { tags: ['Tests'], security: bearer, summary: 'Get attempt', parameters: [uuidParam('attemptId')], responses: ok() } },
+      '/api/attempts/{attemptId}/answers': { post: { tags: ['Tests'], security: bearer, summary: 'Save answers', parameters: [uuidParam('attemptId')], responses: ok() } },
+      '/api/attempts/{attemptId}/submit': { post: { tags: ['Tests'], security: bearer, summary: 'Submit attempt', parameters: [uuidParam('attemptId')], responses: ok() } },
+      '/api/attempts/{attemptId}/result': { get: { tags: ['Tests'], security: bearer, summary: 'Attempt result with answers', parameters: [uuidParam('attemptId')], responses: ok() } },
+      '/api/plans': { get: { tags: ['Payments'], summary: 'List plans', responses: ok() } },
+      '/api/plans/{planId}': { get: { tags: ['Payments'], summary: 'Get plan', parameters: [uuidParam('planId')], responses: ok() } },
+      '/api/subscriptions/current': { get: { tags: ['Payments'], security: bearer, summary: 'Current subscription', responses: ok() } },
+      '/api/subscriptions/{subscriptionId}/cancel': { post: { tags: ['Payments'], security: bearer, summary: 'Cancel subscription', parameters: [uuidParam('subscriptionId')], responses: ok() } },
+      '/api/payments/history': { get: { tags: ['Payments'], security: bearer, summary: 'Payment history', responses: ok() } },
+      '/api/payments/create-order': { post: { tags: ['Payments'], security: bearer, summary: 'Create Razorpay order', responses: created } },
+      '/api/payments/verify': { post: { tags: ['Payments'], security: bearer, summary: 'Verify payment', responses: ok() } },
+      '/api/payments/webhook': { post: { tags: ['Payments'], summary: 'Razorpay webhook', responses: ok() } },
+      '/api/help/faqs': { get: { tags: ['Support'], summary: 'FAQs', responses: ok() } },
+      '/api/support/tickets': {
+        get: { tags: ['Support'], security: bearer, summary: 'My tickets', responses: ok() },
+        post: { tags: ['Support'], security: bearer, summary: 'Create ticket', responses: created }
+      },
+      '/api/support/tickets/{ticketId}': { get: { tags: ['Support'], security: bearer, summary: 'Get ticket', parameters: [uuidParam('ticketId')], responses: ok() } },
+      '/api/support/tickets/{ticketId}/messages': { post: { tags: ['Support'], security: bearer, summary: 'Add ticket message', parameters: [uuidParam('ticketId')], responses: ok() } },
+      '/api/legal/terms': { get: { tags: ['Legal'], summary: 'Terms', responses: ok() } },
+      '/api/legal/privacy-policy': { get: { tags: ['Legal'], summary: 'Privacy policy', responses: ok() } },
+      '/api/legal/refund-policy': { get: { tags: ['Legal'], summary: 'Refund policy', responses: ok() } },
+      '/api/notifications': { get: { tags: ['Notifications'], security: bearer, summary: 'My notifications', responses: ok() } },
+      '/api/notifications/read-all': { patch: { tags: ['Notifications'], security: bearer, summary: 'Mark all read', responses: ok() } },
+      '/api/notifications/{notificationId}/read': { patch: { tags: ['Notifications'], security: bearer, summary: 'Mark one read', parameters: [uuidParam('notificationId')], responses: ok() } },
+      '/api/admin/users': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List users', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create staff user', responses: created }
+      },
+      '/api/admin/users/{userId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get user', parameters: [uuidParam('userId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update user', parameters: [uuidParam('userId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete user', parameters: [uuidParam('userId')], responses: ok() }
+      },
+      '/api/admin/users/{userId}/status': { patch: { tags: ['Admin'], security: bearer, summary: 'Update user status', parameters: [uuidParam('userId')], responses: ok() } },
+      '/api/admin/courses': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List courses', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create course', responses: created }
+      },
+      '/api/admin/courses/{courseId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get course', parameters: [uuidParam('courseId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update course', parameters: [uuidParam('courseId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete course', parameters: [uuidParam('courseId')], responses: ok() }
+      },
+      '/api/admin/groups': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List groups', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create group', responses: created }
+      },
+      '/api/admin/groups/{groupId}': {
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update group', parameters: [uuidParam('groupId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete group', parameters: [uuidParam('groupId')], responses: ok() }
+      },
+      '/api/admin/classes': { post: { tags: ['Admin'], security: bearer, summary: 'Create class', responses: created } },
+      '/api/admin/classes/{classId}': {
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update class', parameters: [uuidParam('classId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete class', parameters: [uuidParam('classId')], responses: ok() }
+      },
+      '/api/admin/subjects': { post: { tags: ['Admin'], security: bearer, summary: 'Create subject', responses: created } },
+      '/api/admin/subjects/{subjectId}': {
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update subject', parameters: [uuidParam('subjectId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete subject', parameters: [uuidParam('subjectId')], responses: ok() }
+      },
+      '/api/admin/content': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List content', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create content', responses: created }
+      },
+      '/api/admin/content/upload': { post: { tags: ['Admin'], security: bearer, summary: 'Upload content file', responses: created } },
+      '/api/admin/content/{contentId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get content', parameters: [uuidParam('contentId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update content', parameters: [uuidParam('contentId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete content', parameters: [uuidParam('contentId')], responses: ok() }
+      },
+      '/api/admin/chapters': { post: { tags: ['Admin'], security: bearer, summary: 'Create chapter', responses: created } },
+      '/api/admin/chapters/{chapterId}': {
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update chapter', parameters: [uuidParam('chapterId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete chapter', parameters: [uuidParam('chapterId')], responses: ok() }
+      },
+      '/api/admin/lessons': { post: { tags: ['Admin'], security: bearer, summary: 'Create lesson', responses: created } },
+      '/api/admin/lessons/{lessonId}': {
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update lesson', parameters: [uuidParam('lessonId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete lesson', parameters: [uuidParam('lessonId')], responses: ok() }
+      },
+      '/api/admin/videos': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List videos', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create video', responses: created }
+      },
+      '/api/admin/videos/{videoId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get video', parameters: [uuidParam('videoId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update video', parameters: [uuidParam('videoId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete video', parameters: [uuidParam('videoId')], responses: ok() }
+      },
+      '/api/admin/current-affairs': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List current affairs', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create article', responses: created }
+      },
+      '/api/admin/current-affairs/upload': { post: { tags: ['Admin'], security: bearer, summary: 'Upload current-affairs file', responses: created } },
+      '/api/admin/current-affairs/{articleId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get article', parameters: [uuidParam('articleId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update article', parameters: [uuidParam('articleId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete article', parameters: [uuidParam('articleId')], responses: ok() }
+      },
+      '/api/admin/tests': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List tests', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create test', responses: created }
+      },
+      '/api/admin/tests/{testId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get test with answers', parameters: [uuidParam('testId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update test', parameters: [uuidParam('testId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete test', parameters: [uuidParam('testId')], responses: ok() }
+      },
+      '/api/admin/tests/{testId}/questions': { post: { tags: ['Admin'], security: bearer, summary: 'Add question', parameters: [uuidParam('testId')], responses: created } },
+      '/api/admin/questions/{questionId}': {
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update question', parameters: [uuidParam('questionId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete question', parameters: [uuidParam('questionId')], responses: ok() }
+      },
+      '/api/admin/analytics/overview': { get: { tags: ['Admin'], security: bearer, summary: 'Analytics overview', responses: ok() } },
+      '/api/admin/analytics/users': { get: { tags: ['Admin'], security: bearer, summary: 'User analytics', responses: ok() } },
+      '/api/admin/analytics/courses': { get: { tags: ['Admin'], security: bearer, summary: 'Course analytics', responses: ok() } },
+      '/api/admin/analytics/tests': { get: { tags: ['Admin'], security: bearer, summary: 'Test analytics', responses: ok() } },
+      '/api/admin/analytics/revenue': { get: { tags: ['Admin'], security: bearer, summary: 'Revenue analytics', responses: ok() } },
+      '/api/admin/plans': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List plans', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create plan', responses: created }
+      },
+      '/api/admin/plans/{planId}': {
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update plan', parameters: [uuidParam('planId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete plan', parameters: [uuidParam('planId')], responses: ok() }
+      },
+      '/api/admin/subscriptions': { get: { tags: ['Admin'], security: bearer, summary: 'List subscriptions', responses: ok() } },
+      '/api/admin/payments': { get: { tags: ['Admin'], security: bearer, summary: 'List payments', responses: ok() } },
+      '/api/admin/support/tickets': { get: { tags: ['Admin'], security: bearer, summary: 'List tickets', responses: ok() } },
+      '/api/admin/support/tickets/{ticketId}': { get: { tags: ['Admin'], security: bearer, summary: 'Get ticket', parameters: [uuidParam('ticketId')], responses: ok() } },
+      '/api/admin/support/tickets/{ticketId}/status': { patch: { tags: ['Admin'], security: bearer, summary: 'Update ticket status', parameters: [uuidParam('ticketId')], responses: ok() } },
+      '/api/admin/support/tickets/{ticketId}/reply': { post: { tags: ['Admin'], security: bearer, summary: 'Reply to ticket', parameters: [uuidParam('ticketId')], responses: ok() } },
+      '/api/admin/legal/terms': { patch: { tags: ['Admin'], security: bearer, summary: 'Update terms', responses: ok() } },
+      '/api/admin/legal/privacy-policy': { patch: { tags: ['Admin'], security: bearer, summary: 'Update privacy policy', responses: ok() } },
+      '/api/admin/legal/refund-policy': { patch: { tags: ['Admin'], security: bearer, summary: 'Update refund policy', responses: ok() } },
+      '/api/admin/notifications': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List notifications', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create notification', responses: created }
+      },
+      '/api/admin/notifications/send': { post: { tags: ['Admin'], security: bearer, summary: 'Send notification', responses: ok() } }
+    }
   },
-  apis: [],
+  apis: []
 };
 
 const spec = swaggerJsdoc(options);
 
 export const swaggerSetup = (app) => {
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec, { explorer: true }));
-  return spec;
+  app.get('/api-docs.json', (_req, res) => res.json(spec));
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec, {
+    customSiteTitle: 'SPKS API Docs',
+    swaggerOptions: { persistAuthorization: true }
+  }));
+  app.get('/', (_req, res) => res.redirect('/api-docs'));
 };

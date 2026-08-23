@@ -1,34 +1,20 @@
-import { query } from 'express-validator';
+import { body, param, query } from 'express-validator';
 
 export const paginationValidator = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-  query('sortBy')
-    .optional()
-    .isIn(['createdAt', 'updatedAt', 'name', 'title'])
-    .withMessage('Invalid sort field'),
-  query('sortOrder')
-    .optional()
-    .isIn(['asc', 'desc'])
-    .withMessage('Sort order must be asc or desc')
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
 ];
 
-export const idValidator = [
-  query('id')
-    .isUUID()
-    .withMessage('Invalid ID')
+export const uuidParam = (name) => [
+  param(name).isUUID().withMessage(`Invalid ${name}`)
 ];
 
-export const searchValidator = [
-  query('search')
-    .optional()
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Search term must be between 1 and 100 characters')
+export const courseIdParam = [
+  param('courseId')
+    .matches(/^[a-zA-Z0-9-]{2,80}$/)
+    .withMessage('Invalid course id')
+];
+
+export const statusValidator = [
+  body('status').isIn(['active', 'inactive', 'blocked', 'deleted']).withMessage('Invalid status')
 ];

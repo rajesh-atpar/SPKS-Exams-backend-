@@ -43,8 +43,16 @@ export class FileService {
     return this.uploadFile(file, FILE_UPLOAD.QUESTION_IMAGE_PATH);
   }
 
-  async uploadExamPdf(file) {
-    return this.uploadFile(file, FILE_UPLOAD.EXAM_PDF_PATH);
+  async uploadContent(file) {
+    return this.uploadFile(file, FILE_UPLOAD.CONTENT_PATH);
+  }
+
+  async uploadVideoAsset(file) {
+    return this.uploadFile(file, FILE_UPLOAD.VIDEO_PATH);
+  }
+
+  async uploadCurrentAffair(file) {
+    return this.uploadFile(file, FILE_UPLOAD.CURRENT_AFFAIRS_PATH);
   }
 
   async deleteFile(filePath) {

@@ -1,0 +1,81 @@
+import { repos } from '../repositories/repos.js';
+import { DEFAULT_FAQS } from '../repositories/live.repository.js';
+import { getPaginationParams } from '../utils/pagination.js';
+import { forbidden, notFound } from '../utils/errors.js';
+
+export class SupportService {
+  async listFaqs() {
+    try {
+      const { items } = await repos.faqs.findMany({
+        limit: 100,
+        orderBy: 'created_at',
+        order: 'desc'
+      });
+      const published = items.filter((item) => item.isPublished !== false);
+      return published.length ? published : DEFAULT_FAQS;
+    } catch {
+      return DEFAULT_FAQS;
+    }
+  }
+
+  async createTicket(userId, { subject, message }) {
+    const ticket = await repos.tickets.create({ userId, subject, status: 'open' });
+    const firstMessage = await repos.messages.create({
+      ticketId: ticket.id,
+      senderId: userId,
+      message,
+      isAdmin: false
+    });
+    return { ...ticket, messages: [firstMessage] };
+  }
+
+  async listMyTickets(userId, query) {
+    const { page, limit } = getPaginationParams(query);
+    const { items, total } = await repos.tickets.findMany({ filters: { userId }, page, limit });
+    return { items, total, page, limit };
+  }
+
+  async getTicket(ticketId, user, { admin = false } = {}) {
+    const ticket = await repos.tickets.findById(ticketId);
+    if (!ticket) throw notFound('Ticket');
+    if (!admin && ticket.userId !== user.id) throw forbidden('You cannot view this ticket');
+
+    const { items: messages } = await repos.messages.findMany({
+      filters: { ticketId },
+      limit: 100,
+      orderBy: 'created_at',
+      order: 'asc'
+    });
+    return { ...ticket, messages };
+  }
+
+  async addMessage(ticketId, user, message, { admin = false } = {}) {
+    const ticket = await this.getTicket(ticketId, user, { admin });
+    const created = await repos.messages.create({
+      ticketId,
+      senderId: user.id,
+      message,
+      isAdmin: admin
+    });
+    if (admin && ticket.status === 'open') {
+      await repos.tickets.update(ticketId, { status: 'in-progress' });
+    }
+    return created;
+  }
+
+  async listAllTickets(query) {
+    const { page, limit } = getPaginationParams(query);
+    const filters = {};
+    if (query.status) filters.status = query.status;
+    const { items, total } = await repos.tickets.findMany({ filters, page, limit });
+    return { items, total, page, limit };
+  }
+
+  async updateStatus(ticketId, status) {
+    const ticket = await repos.tickets.findById(ticketId);
+    if (!ticket) throw notFound('Ticket');
+    return repos.tickets.update(ticketId, { status });
+  }
+}
+
+export default new SupportService();
