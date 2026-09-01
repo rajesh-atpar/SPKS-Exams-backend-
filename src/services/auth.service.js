@@ -1,265 +1,212 @@
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import adminRepository from '../repositories/Admin.repository.js';
-import studentRepository from '../repositories/Student.repository.js';
-import { supabaseAdmin } from '../services/supabaseClient.js';
-import { ERROR_CODES, HTTP_STATUS, JWT_CONFIG } from '../config/constants.js';
+import { repos } from '../repositories/repos.js';
+import { JWT_CONFIG, STAFF_ROLES, USER_ROLES, USER_STATUS } from '../config/constants.js';
+import { omit } from '../utils/case.js';
+import { conflict, forbidden, notFound, unauthorized } from '../utils/errors.js';
 import logger from '../config/logger.js';
+import emailService from './email.service.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+const hashToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+const parseDuration = (value) => {
+  const match = String(value).match(/^(\d+)([smhd])$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000;
+  const amount = Number(match[1]);
+  const unit = { s: 1000, m: 60000, h: 3600000, d: 86400000 }[match[2]];
+  return amount * unit;
+};
+
+const publicUser = (user) => omit(user, ['passwordHash']);
+
+const isUsableStatus = (status) => {
+  const value = String(status || 'active').toLowerCase();
+  return !['inactive', 'blocked', 'deleted', 'banned', 'suspended'].includes(value);
+};
+
+const hydrateUser = async (user) => {
+  if (!user) return null;
+
+  try {
+    const admin = await repos.admins.findOne({ userId: user.id });
+    if (admin) user.role = admin.role || 'admin';
+  } catch {
+    user.role = user.role || 'user';
+  }
+
+  try {
+    const student = await repos.students.findOne({ userId: user.id });
+    if (student?.state) user.state = student.state;
+  } catch {
+    // Live students table may use different columns; profile still works.
+  }
+
+  return user;
+};
+
 export class AuthService {
-  async registerAdmin(adminData) {
-    const existingAdmin = await adminRepository.findByEmail(adminData.email);
-    if (existingAdmin) {
-      const error = new Error('Admin with this email already exists');
-      error.code = ERROR_CODES.CONFLICT_ERROR;
-      error.statusCode = HTTP_STATUS.CONFLICT;
-      throw error;
-    }
-
-    const passwordHash = await bcrypt.hash(adminData.password, 10);
-
-    const admin = await adminRepository.create({
-      ...adminData,
-      passwordHash
-    });
-
-    // Create Supabase auth user
-    const { error: supabaseError } = await supabaseAdmin.auth.admin.createUser({
-      email: adminData.email,
-      password: adminData.password,
-      email_confirm: true
-    });
-
-    if (supabaseError) {
-      logger.error('Supabase user creation failed:', supabaseError);
-    }
-
-    const token = this.generateToken(admin.id, 'admin', admin.roleId);
-
-    return {
-      admin: admin.toJSON(),
-      token
-    };
-  }
-
-  async registerStudent(studentData) {
-    const existingStudent = await studentRepository.findByEmail(studentData.email);
-    if (existingStudent) {
-      const error = new Error('Student with this email already exists');
-      error.code = ERROR_CODES.CONFLICT_ERROR;
-      error.statusCode = HTTP_STATUS.CONFLICT;
-      throw error;
-    }
-
-    if (studentData.rollNumber) {
-      const existingRollNumber = await studentRepository.findByRollNumber(studentData.rollNumber);
-      if (existingRollNumber) {
-        const error = new Error('Student with this roll number already exists');
-        error.code = ERROR_CODES.CONFLICT_ERROR;
-        error.statusCode = HTTP_STATUS.CONFLICT;
-        throw error;
-      }
-    }
-
-    const passwordHash = await bcrypt.hash(studentData.password, 10);
-
-    const student = await studentRepository.create({
-      ...studentData,
-      passwordHash
-    });
-
-    // Create Supabase auth user
-    const { error: supabaseError } = await supabaseAdmin.auth.admin.createUser({
-      email: studentData.email,
-      password: studentData.password,
-      email_confirm: false
-    });
-
-    if (supabaseError) {
-      logger.error('Supabase user creation failed:', supabaseError);
-    }
-
-    const token = this.generateToken(student.id, 'student');
-
-    return {
-      student: student.toJSON(),
-      token
-    };
-  }
-
-  async loginAdmin(email, password) {
-    const admin = await adminRepository.findByEmail(email);
-    if (!admin) {
-      const error = new Error('Invalid credentials');
-      error.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      error.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw error;
-    }
-
-    if (!admin.isActive) {
-      const error = new Error('Account is deactivated');
-      error.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      error.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw error;
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, admin.passwordHash);
-    if (!isPasswordValid) {
-      const error = new Error('Invalid credentials');
-      error.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      error.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw error;
-    }
-
-    await adminRepository.updateLastLogin(admin.id);
-
-    const token = this.generateToken(admin.id, 'admin', admin.roleId);
-
-    return {
-      admin: admin.toJSON(),
-      token
-    };
-  }
-
-  async loginStudent(email, password) {
-    const student = await studentRepository.findByEmail(email);
-    if (!student) {
-      const error = new Error('Invalid credentials');
-      error.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      error.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw error;
-    }
-
-    if (!student.isActive) {
-      const error = new Error('Account is deactivated');
-      error.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      error.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw error;
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, student.passwordHash);
-    if (!isPasswordValid) {
-      const error = new Error('Invalid credentials');
-      error.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      error.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw error;
-    }
-
-    await studentRepository.updateLastLogin(student.id);
-
-    const token = this.generateToken(student.id, 'student');
-
-    return {
-      student: student.toJSON(),
-      token
-    };
-  }
-
-  async verifyToken(token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      return decoded;
-    } catch (error) {
-      const err = new Error('Invalid or expired token');
-      err.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      err.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw err;
-    }
-  }
-
-  generateToken(userId, userType, roleId = null) {
-    const payload = {
-      userId,
-      userType,
-      roleId
-    };
-
-    return jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY
-    });
-  }
-
-  async changePassword(userId, userType, currentPassword, newPassword) {
-    let user;
-    if (userType === 'admin') {
-      user = await adminRepository.findById(userId);
-    } else {
-      user = await studentRepository.findById(userId);
-    }
-
-    if (!user) {
-      const error = new Error('User not found');
-      error.code = ERROR_CODES.NOT_FOUND_ERROR;
-      error.statusCode = HTTP_STATUS.NOT_FOUND;
-      throw error;
-    }
-
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!isPasswordValid) {
-      const error = new Error('Current password is incorrect');
-      error.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      error.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw error;
-    }
-
-    const newPasswordHash = await bcrypt.hash(newPassword, 10);
-
-    if (userType === 'admin') {
-      await adminRepository.update(userId, { passwordHash: newPasswordHash });
-    } else {
-      await studentRepository.update(userId, { passwordHash: newPasswordHash });
-    }
-
-    return { message: 'Password changed successfully' };
-  }
-
-  async forgotPassword(email, userType) {
-    let user;
-    if (userType === 'admin') {
-      user = await adminRepository.findByEmail(email);
-    } else {
-      user = await studentRepository.findByEmail(email);
-    }
-
-    if (!user) {
-      const error = new Error('User not found');
-      error.code = ERROR_CODES.NOT_FOUND_ERROR;
-      error.statusCode = HTTP_STATUS.NOT_FOUND;
-      throw error;
-    }
-
-    const resetToken = jwt.sign(
-      { userId: user.id, userType },
+  generateAccessToken(user) {
+    return jwt.sign(
+      { userId: user.id, role: user.role, type: 'access' },
       JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: JWT_CONFIG.ACCESS_TOKEN_EXPIRY }
     );
-
-    // TODO: Send email with reset token
-    logger.info(`Password reset token for ${email}: ${resetToken}`);
-
-    return { message: 'Password reset link sent to email' };
   }
 
-  async resetPassword(token, newPassword) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const newPasswordHash = await bcrypt.hash(newPassword, 10);
+  async createRefreshToken(userId) {
+    const token = crypto.randomBytes(48).toString('hex');
+    await repos.refreshTokens.create({
+      userId,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + parseDuration(JWT_CONFIG.REFRESH_TOKEN_EXPIRY)).toISOString()
+    });
+    return token;
+  }
 
-      if (decoded.userType === 'admin') {
-        await adminRepository.update(decoded.userId, { passwordHash: newPasswordHash });
-      } else {
-        await studentRepository.update(decoded.userId, { passwordHash: newPasswordHash });
-      }
+  async issueTokens(user) {
+    return {
+      user: publicUser(user),
+      accessToken: this.generateAccessToken(user),
+      refreshToken: await this.createRefreshToken(user.id)
+    };
+  }
 
-      return { message: 'Password reset successful' };
-    } catch (error) {
-      const err = new Error('Invalid or expired reset token');
-      err.code = ERROR_CODES.AUTHENTICATION_ERROR;
-      err.statusCode = HTTP_STATUS.UNAUTHORIZED;
-      throw err;
+  async register(payload) {
+    const existingEmail = await repos.users.findOne({ email: payload.email.toLowerCase() });
+    if (existingEmail) throw conflict('Email is already registered');
+
+    if (payload.phone) {
+      const existingPhone = await repos.users.findOne({ phone: payload.phone });
+      if (existingPhone) throw conflict('Phone number is already registered');
     }
+
+    const user = await repos.users.create({
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      email: payload.email.toLowerCase(),
+      phone: payload.phone || null,
+      passwordHash: await bcrypt.hash(payload.password, 10),
+      profileImage: payload.profileImage || null,
+      status: USER_STATUS.ACTIVE
+    });
+
+    user.role = USER_ROLES.USER;
+    user.state = payload.state || null;
+
+    try {
+      await repos.students.create({
+        userId: user.id,
+        state: payload.state || null
+      });
+    } catch (error) {
+      logger.warn(`Student profile row not created: ${error.message}`);
+    }
+
+    try {
+      await repos.userSettings.create({ userId: user.id });
+    } catch {
+      // Settings table is optional on the live database.
+    }
+
+    return this.issueTokens(user);
+  }
+
+  async login(email, password, { staffOnly = false, appOnly = false } = {}) {
+    const user = await repos.users.findOne({ email: email.toLowerCase() });
+    if (!user) throw unauthorized('Invalid credentials');
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) throw unauthorized('Invalid credentials');
+
+    if (!isUsableStatus(user.status)) {
+      throw forbidden('Account is not active');
+    }
+
+    await hydrateUser(user);
+
+    if (staffOnly && !STAFF_ROLES.includes(user.role)) {
+      throw forbidden('Admin access required');
+    }
+
+    if (appOnly && user.role !== USER_ROLES.USER) {
+      throw forbidden('Use the admin login for staff accounts');
+    }
+
+    await repos.users.update(user.id, { lastLoginAt: new Date().toISOString() });
+    return this.issueTokens(user);
+  }
+
+  async refresh(refreshToken) {
+    const record = await repos.refreshTokens.findOne({ tokenHash: hashToken(refreshToken) });
+    if (!record || record.revokedAt || new Date(record.expiresAt) < new Date()) {
+      throw unauthorized('Invalid or expired refresh token');
+    }
+
+    const user = await repos.users.findById(record.userId);
+    if (!user || user.status !== USER_STATUS.ACTIVE) {
+      throw unauthorized('User not found');
+    }
+
+    await repos.refreshTokens.update(record.id, { revokedAt: new Date().toISOString() });
+    return this.issueTokens(user);
+  }
+
+  async logout(userId, refreshToken) {
+    if (refreshToken) {
+      const record = await repos.refreshTokens.findOne({ tokenHash: hashToken(refreshToken) });
+      if (record && record.userId === userId) {
+        await repos.refreshTokens.update(record.id, { revokedAt: new Date().toISOString() });
+      }
+    }
+    return { message: 'Logout successful' };
+  }
+
+  async me(userId) {
+    const user = await hydrateUser(await repos.users.findById(userId));
+    if (!user) throw notFound('User');
+    return publicUser(user);
+  }
+
+  async forgotPassword(email) {
+    const user = await repos.users.findOne({ email: email.toLowerCase() });
+    if (!user) {
+      return { message: 'If that email exists, a reset link has been sent' };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await repos.passwordResets.create({
+      userId: user.id,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + parseDuration(JWT_CONFIG.RESET_TOKEN_EXPIRY)).toISOString()
+    });
+
+    try {
+      await emailService.sendPasswordResetEmail(user.email, token);
+    } catch (error) {
+      logger.warn(`Password reset email not sent: ${error.message}`);
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      logger.info(`Password reset token for ${email}: ${token}`);
+    }
+
+    return { message: 'If that email exists, a reset link has been sent' };
+  }
+
+  async resetPassword(token, password) {
+    const record = await repos.passwordResets.findOne({ tokenHash: hashToken(token) });
+    if (!record || record.usedAt || new Date(record.expiresAt) < new Date()) {
+      throw unauthorized('Invalid or expired reset token');
+    }
+
+    await repos.users.update(record.userId, {
+      passwordHash: await bcrypt.hash(password, 10)
+    });
+    await repos.passwordResets.update(record.id, { usedAt: new Date().toISOString() });
+    return { message: 'Password reset successful' };
   }
 }
 

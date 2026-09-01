@@ -1,38 +1,72 @@
-// Application Constants
-
-export const USER_TYPES = {
+export const USER_ROLES = {
+  USER: 'user',
   ADMIN: 'admin',
-  STUDENT: 'student'
+  EDITOR: 'editor',
+  SUPPORT: 'support'
 };
 
-export const EXAM_STATUS = {
-  DRAFT: 'draft',
-  PUBLISHED: 'published',
+export const STAFF_ROLES = [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.SUPPORT];
+
+export const USER_STATUS = {
   ACTIVE: 'active',
-  COMPLETED: 'completed',
-  ARCHIVED: 'archived'
+  INACTIVE: 'inactive',
+  BLOCKED: 'blocked',
+  DELETED: 'deleted'
+};
+
+export const CONTENT_TYPES = {
+  PDF: 'pdf',
+  BOOK: 'book',
+  NOTE: 'note',
+  ARTICLE: 'article',
+  OUTSIDE_SOURCE: 'outside-source',
+  LESSON: 'lesson'
+};
+
+export const CURRENT_AFFAIR_CATEGORIES = {
+  STATE: 'state',
+  INDIA: 'india',
+  INTERNATIONAL: 'international',
+  OTHERS: 'others'
+};
+
+export const TICKET_STATUS = {
+  OPEN: 'open',
+  IN_PROGRESS: 'in-progress',
+  RESOLVED: 'resolved',
+  CLOSED: 'closed'
 };
 
 export const ATTEMPT_STATUS = {
-  IN_PROGRESS: 'in_progress',
+  IN_PROGRESS: 'in-progress',
   SUBMITTED: 'submitted',
-  AUTO_SUBMITTED: 'auto_submitted',
-  ABANDONED: 'abandoned'
+  AUTO_SUBMITTED: 'auto-submitted'
 };
 
-export const QUESTION_TYPES = {
-  SINGLE_CHOICE: 'single_choice',
-  MULTIPLE_CHOICE: 'multiple_choice',
-  TRUE_FALSE: 'true_false',
-  SHORT_ANSWER: 'short_answer'
+export const BOOKMARK_TYPES = {
+  CONTENT: 'content',
+  VIDEO: 'video',
+  CURRENT_AFFAIR: 'current-affair'
 };
 
-export const NOTIFICATION_TYPES = {
-  EXAM_ASSIGNED: 'exam_assigned',
-  EXAM_REMINDER: 'exam_reminder',
-  RESULT_PUBLISHED: 'result_published',
-  CERTIFICATE_ISSUED: 'certificate_issued',
-  GENERAL: 'general'
+export const LEGAL_TYPES = {
+  TERMS: 'terms',
+  PRIVACY: 'privacy-policy',
+  REFUND: 'refund-policy'
+};
+
+export const PAYMENT_STATUS = {
+  CREATED: 'created',
+  PAID: 'paid',
+  FAILED: 'failed',
+  REFUNDED: 'refunded'
+};
+
+export const SUBSCRIPTION_STATUS = {
+  ACTIVE: 'active',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired',
+  PENDING: 'pending'
 };
 
 export const HTTP_STATUS = {
@@ -55,7 +89,7 @@ export const ERROR_CODES = {
   CONFLICT_ERROR: 'CONFLICT_ERROR',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
-  SUPABASE_ERROR: 'SUPABASE_ERROR'
+  PAYMENT_ERROR: 'PAYMENT_ERROR'
 };
 
 export const PAGINATION = {
@@ -65,52 +99,32 @@ export const PAGINATION = {
 };
 
 export const FILE_UPLOAD = {
-  MAX_SIZE: 5 * 1024 * 1024, // 5MB
+  MAX_SIZE: Number(process.env.MAX_FILE_SIZE) || 25 * 1024 * 1024,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'],
   ALLOWED_DOCUMENT_TYPES: ['application/pdf'],
   PROFILE_IMAGE_PATH: 'profile-images',
-  QUESTION_IMAGE_PATH: 'question-images',
-  EXAM_PDF_PATH: 'exam-pdfs',
-  CERTIFICATE_PATH: 'certificates'
-};
-
-export const EXAM_CONFIG = {
-  DEFAULT_DURATION: 60, // minutes
-  DEFAULT_PASSING_PERCENTAGE: 40,
-  DEFAULT_NEGATIVE_MARKING: 0.25,
-  DEFAULT_MAX_ATTEMPTS: 1
+  CONTENT_PATH: 'content',
+  VIDEO_PATH: 'videos',
+  CURRENT_AFFAIRS_PATH: 'current-affairs',
+  QUESTION_IMAGE_PATH: 'question-images'
 };
 
 export const JWT_CONFIG = {
   ACCESS_TOKEN_EXPIRY: process.env.JWT_EXPIRES_IN || '1h',
-  REFRESH_TOKEN_EXPIRY: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+  REFRESH_TOKEN_EXPIRY: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  RESET_TOKEN_EXPIRY: '1h'
 };
 
-export const EMAIL_TEMPLATES = {
-  EXAM_ASSIGNED: 'exam_assigned',
-  EXAM_REMINDER: 'exam_reminder',
-  RESULT_PUBLISHED: 'result_published',
-  PASSWORD_RESET: 'password_reset',
-  EMAIL_VERIFICATION: 'email_verification'
-};
-
-export const SORT_OPTIONS = {
-  NEWEST_FIRST: 'newest_first',
-  OLDEST_FIRST: 'oldest_first',
-  HIGHEST_MARKS: 'highest_marks',
-  LOWEST_MARKS: 'lowest_marks',
-  ALPHABETICAL: 'alphabetical'
-};
-
-export const EXPORT_FORMATS = {
-  PDF: 'pdf',
-  EXCEL: 'excel',
-  CSV: 'csv'
-};
-
-export const TIMEZONES = {
-  DEFAULT: 'UTC',
-  INDIA: 'Asia/Kolkata',
-  US_EASTERN: 'America/New_York',
-  US_PACIFIC: 'America/Los_Angeles'
-};
+export const PUBLIC_USER_FIELDS = [
+  'id',
+  'firstName',
+  'lastName',
+  'email',
+  'phone',
+  'profileImage',
+  'state',
+  'role',
+  'status',
+  'createdAt',
+  'updatedAt'
+];

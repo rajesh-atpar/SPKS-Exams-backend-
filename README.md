@@ -1,150 +1,55 @@
-# Backend API
+# SPKS Backend API
 
-Production-ready Node.js backend with **Supabase Auth** and **Swagger**. Ready to connect with React, Next.js, or React Native.
+Express + Supabase backend for the SPKS mobile app and admin panel.
 
-## Tech stack
+## Stack
 
-- **Node.js** (v18+)
-- **Express.js**
-- **Supabase** (Auth + DB via `@supabase/supabase-js`)
-- **dotenv**
-- **Swagger** (swagger-jsdoc + swagger-ui-express)
-- **CORS** enabled
+- Node.js 18+ and Express
+- PostgreSQL via Supabase
+- JWT access tokens + stored refresh tokens
+- bcrypt password hashing
+- Razorpay payments
+- Swagger at `/`
 
-## Install
+## Setup
+
+1. Copy `.env.example` to `.env.local` and fill in Supabase, JWT, and optional Razorpay keys.
+2. Run `database/schema.sql` in the Supabase SQL editor. This replaces the old exam-only schema with users, courses, tests, payments, and the rest of the platform tables.
+3. Install and start:
 
 ```bash
 npm install
-```
-
-## Environment
-
-1. Copy the example env file:
-
-```bash
-cp .env.example .env
-```
-
-2. Edit `.env` and set:
-
-- `SUPABASE_URL` – from [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Settings** → **API**
-- `SUPABASE_ANON_KEY` – same place (Project API keys → anon public)
-
-## How to run
-
-**Production:**
-
-```bash
-npm start
-```
-
-**Development (auto-reload):**
-
-```bash
+npm run seed:admin
 npm run dev
 ```
 
-Server runs at **http://localhost:4000** (or the `PORT` in `.env`).
+Default seed admin is `admin@spks.com` / `Admin123`. Change this immediately.
 
-## API docs (Swagger)
+## Auth
 
-- **Swagger UI:** http://localhost:4000/api-docs
+App users register and log in at `/api/auth/*` with role `user`.
 
-## Endpoints
+Staff log in at `/api/admin/auth/*`. Roles are `admin`, `editor`, and `support`.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check |
-| POST | `/api/auth/register` | Register (email + password) |
-| POST | `/api/auth/login` | Login (email + password) |
+Send `Authorization: Bearer <accessToken>` on protected routes. Use `refreshToken` with `/refresh-token` to rotate tokens.
 
-### POST `/api/auth/register`
+## API groups
 
-- **Body:** `{ "email": "user@example.com", "password": "password123", "fullName": "Optional Name" }`
-- **Success (201):** `{ success: true, message: "...", data: { user, session } }`
-- **Errors:** 400 (validation), 409 (user already exists)
+| Area | App | Admin |
+| --- | --- | --- |
+| Auth | `/api/auth` | `/api/admin/auth` |
+| Users | `/api/users/me` | `/api/admin/users` |
+| Courses | `/api/courses` | `/api/admin/courses` |
+| Catalog | `/api/groups`, `/api/classes`, `/api/subjects` | `/api/admin/groups`, `/classes`, `/subjects` |
+| Content | `/api/content` | `/api/admin/content` |
+| Videos | `/api/videos` | `/api/admin/videos` |
+| Current affairs | `/api/current-affairs` | `/api/admin/current-affairs` |
+| Tests | `/api/tests`, `/api/attempts` | `/api/admin/tests` |
+| Payments | `/api/plans`, `/api/payments` | `/api/admin/plans` |
+| Support | `/api/support`, `/api/help/faqs` | `/api/admin/support` |
+| Legal | `/api/legal` | `/api/admin/legal` |
+| Notifications | `/api/notifications` | `/api/admin/notifications` |
 
-### POST `/api/auth/login`
+Full docs: `http://localhost:4000/api-docs`
 
-- **Body:** `{ "email": "user@example.com", "password": "password123" }`
-- **Success (200):** `{ success: true, message: "Login successful", data: { user, session } }`
-- **Errors:** 400 (validation), 401 (invalid credentials)
-
-## Response format
-
-All responses use this shape:
-
-```json
-{
-  "success": true,
-  "message": "...",
-  "data": { ... }
-}
-```
-
-Errors:
-
-```json
-{
-  "success": false,
-  "message": "Error description",
-  "data": null,
-  "code": "ERROR_CODE"
-}
-```
-
-## Project structure
-
-```
-src/
-  server.js              # Entry point
-  app.js                  # Express app, middleware, routes
-  config/
-    swagger.js            # Swagger setup & schemas
-  controllers/
-    auth.controller.js    # Register & login logic
-  middleware/
-    errorHandler.js       # Central error & 404 handler
-  routes/
-    auth.routes.js        # POST /register, /login
-  services/
-    supabaseClient.js     # Supabase client (SUPABASE_URL, SUPABASE_ANON_KEY)
-```
-
-## Supabase setup
-
-- In Supabase: **Authentication** → **Providers** → **Email** → enable **Email**.
-- If “Confirm email” is on, users must confirm before they can log in.
-
-## Frontend usage
-
-Use the same `fetch` calls from React, Next.js, or React Native. Example:
-
-```javascript
-const API = 'http://localhost:4000';
-
-// Register
-const res = await fetch(`${API}/api/auth/register`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password, fullName }),
-});
-const data = await res.json();
-if (data.success) {
-  const { user, session } = data.data;
-  // Store session.accessToken for authenticated requests
-}
-
-// Login
-const loginRes = await fetch(`${API}/api/auth/login`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ email, password }),
-});
-const loginData = await loginRes.json();
-if (loginData.success) {
-  const { user, session } = loginData.data;
-}
-```
-
-For protected routes, send the token in the header: `Authorization: Bearer <accessToken>`.
+Correct answers are omitted from app test payloads until the attempt is submitted.
