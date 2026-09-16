@@ -3,13 +3,13 @@ import { spawnSync } from 'child_process';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
-// Vercel/CI run this without runtime secrets. Placeholders let the app
-// load so we can syntax-check and verify routes; real env is required at start.
-process.env.LOG_TO_FILE ||= 'false';
-process.env.SUPABASE_URL ||= 'https://placeholder.supabase.co';
-process.env.SUPABASE_ANON_KEY ||= 'build-placeholder-anon-key';
-process.env.SUPABASE_SERVICE_ROLE_KEY ||= 'build-placeholder-service-role-key';
-process.env.JWT_SECRET ||= 'build-placeholder-jwt-secret';
+// Always overwrite. Vercel injects dashboard env during build, and an invalid
+// SUPABASE_URL (for example a key instead of https://...) would crash createClient.
+process.env.LOG_TO_FILE = 'false';
+process.env.SUPABASE_URL = 'https://placeholder.supabase.co';
+process.env.SUPABASE_ANON_KEY = 'build-placeholder-anon-key';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'build-placeholder-service-role-key';
+process.env.JWT_SECRET = 'build-placeholder-jwt-secret';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 

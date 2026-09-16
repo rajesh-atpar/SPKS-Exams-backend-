@@ -30,6 +30,10 @@ export const assertProductionEnv = () => {
     throw new Error(`Missing required production environment variables: ${missing.join(', ')}`);
   }
 
+  if (!/^https?:\/\//i.test(String(process.env.SUPABASE_URL).trim())) {
+    throw new Error('SUPABASE_URL must be the project URL, like https://xxxx.supabase.co — not an API key.');
+  }
+
   if (WEAK_SECRETS.has(process.env.JWT_SECRET) || String(process.env.JWT_SECRET).length < 16) {
     throw new Error('JWT_SECRET must be a strong unique value in production (min 16 characters).');
   }
