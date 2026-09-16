@@ -30,9 +30,8 @@ export class NotificationService {
       return repos.notifications.create(payload);
     }
 
-    const { items: users } = await repos.users.findMany({
-      filters: { role: 'user', status: 'active' },
-      limit: 100
+    const { items: users } = await repos.users.findAll({
+      filters: { role: 'user', status: 'active' }
     });
     const created = await Promise.all(
       users.map((user) => repos.notifications.create({ ...payload, userId: user.id }))

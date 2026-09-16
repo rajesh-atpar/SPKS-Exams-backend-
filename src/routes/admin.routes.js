@@ -1,8 +1,40 @@
 import { Router } from 'express';
 import { authenticate, authorizeAdmin, authorizeStaff } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
-import { uploadContentFile } from '../middleware/upload.js';
+import { uploadContentFile, uploadQuestionImage } from '../middleware/upload.js';
 import { uuidParam } from '../validators/common.validator.js';
+import {
+  chapterBodyValidator,
+  chapterUpdateValidator,
+  classBodyValidator,
+  classUpdateValidator,
+  contentBodyValidator,
+  contentUpdateValidator,
+  courseBodyValidator,
+  courseUpdateValidator,
+  currentAffairBodyValidator,
+  currentAffairUpdateValidator,
+  faqBodyValidator,
+  faqUpdateValidator,
+  groupBodyValidator,
+  groupUpdateValidator,
+  legalBodyValidator,
+  lessonBodyValidator,
+  lessonUpdateValidator,
+  notificationBodyValidator,
+  planBodyValidator,
+  planUpdateValidator,
+  questionBodyValidator,
+  questionUpdateValidator,
+  subjectBodyValidator,
+  subjectUpdateValidator,
+  testBodyValidator,
+  testUpdateValidator,
+  ticketReplyValidator,
+  ticketStatusBodyValidator,
+  videoBodyValidator,
+  videoUpdateValidator
+} from '../validators/admin.validator.js';
 import * as catalogController from '../controllers/catalog.controller.js';
 import * as contentController from '../controllers/content.controller.js';
 import * as mediaController from '../controllers/media.controller.js';
@@ -13,60 +45,70 @@ const router = Router();
 
 router.use(authenticate, authorizeStaff);
 
-router.post('/courses', catalogController.adminCreateCourse);
+router.post('/courses', courseBodyValidator, validate, catalogController.adminCreateCourse);
 router.get('/courses', catalogController.adminListCourses);
 router.get('/courses/:courseId', uuidParam('courseId'), validate, catalogController.adminGetCourse);
-router.patch('/courses/:courseId', uuidParam('courseId'), validate, catalogController.adminUpdateCourse);
+router.patch('/courses/:courseId', uuidParam('courseId'), courseUpdateValidator, validate, catalogController.adminUpdateCourse);
 router.delete('/courses/:courseId', uuidParam('courseId'), validate, catalogController.adminDeleteCourse);
 
-router.post('/groups', catalogController.adminCreateGroup);
+router.post('/groups', groupBodyValidator, validate, catalogController.adminCreateGroup);
 router.get('/groups', catalogController.adminListGroups);
-router.patch('/groups/:groupId', uuidParam('groupId'), validate, catalogController.adminUpdateGroup);
+router.get('/groups/:groupId', uuidParam('groupId'), validate, catalogController.adminGetGroup);
+router.patch('/groups/:groupId', uuidParam('groupId'), groupUpdateValidator, validate, catalogController.adminUpdateGroup);
 router.delete('/groups/:groupId', uuidParam('groupId'), validate, catalogController.adminDeleteGroup);
 
-router.post('/classes', catalogController.adminCreateClass);
-router.patch('/classes/:classId', uuidParam('classId'), validate, catalogController.adminUpdateClass);
+router.post('/classes', classBodyValidator, validate, catalogController.adminCreateClass);
+router.get('/classes', catalogController.adminListClasses);
+router.get('/classes/:classId', uuidParam('classId'), validate, catalogController.adminGetClass);
+router.patch('/classes/:classId', uuidParam('classId'), classUpdateValidator, validate, catalogController.adminUpdateClass);
 router.delete('/classes/:classId', uuidParam('classId'), validate, catalogController.adminDeleteClass);
 
-router.post('/subjects', catalogController.adminCreateSubject);
-router.patch('/subjects/:subjectId', uuidParam('subjectId'), validate, catalogController.adminUpdateSubject);
+router.post('/subjects', subjectBodyValidator, validate, catalogController.adminCreateSubject);
+router.get('/subjects', catalogController.adminListSubjects);
+router.get('/subjects/:subjectId', uuidParam('subjectId'), validate, catalogController.adminGetSubject);
+router.patch('/subjects/:subjectId', uuidParam('subjectId'), subjectUpdateValidator, validate, catalogController.adminUpdateSubject);
 router.delete('/subjects/:subjectId', uuidParam('subjectId'), validate, catalogController.adminDeleteSubject);
 
-router.post('/content', contentController.adminCreateContent);
+router.post('/content', contentBodyValidator, validate, contentController.adminCreateContent);
 router.get('/content', contentController.adminListContent);
 router.post('/content/upload', uploadContentFile, contentController.adminUploadContent);
 router.get('/content/:contentId', uuidParam('contentId'), validate, contentController.adminGetContent);
-router.patch('/content/:contentId', uuidParam('contentId'), validate, contentController.adminUpdateContent);
+router.patch('/content/:contentId', uuidParam('contentId'), contentUpdateValidator, validate, contentController.adminUpdateContent);
 router.delete('/content/:contentId', uuidParam('contentId'), validate, contentController.adminDeleteContent);
 
-router.post('/chapters', contentController.adminCreateChapter);
-router.patch('/chapters/:chapterId', uuidParam('chapterId'), validate, contentController.adminUpdateChapter);
+router.post('/chapters', chapterBodyValidator, validate, contentController.adminCreateChapter);
+router.get('/chapters', contentController.adminListChapters);
+router.get('/chapters/:chapterId', uuidParam('chapterId'), validate, contentController.adminGetChapter);
+router.patch('/chapters/:chapterId', uuidParam('chapterId'), chapterUpdateValidator, validate, contentController.adminUpdateChapter);
 router.delete('/chapters/:chapterId', uuidParam('chapterId'), validate, contentController.adminDeleteChapter);
 
-router.post('/lessons', contentController.adminCreateLesson);
-router.patch('/lessons/:lessonId', uuidParam('lessonId'), validate, contentController.adminUpdateLesson);
+router.post('/lessons', lessonBodyValidator, validate, contentController.adminCreateLesson);
+router.get('/lessons', contentController.adminListLessons);
+router.get('/lessons/:lessonId', uuidParam('lessonId'), validate, contentController.adminGetLesson);
+router.patch('/lessons/:lessonId', uuidParam('lessonId'), lessonUpdateValidator, validate, contentController.adminUpdateLesson);
 router.delete('/lessons/:lessonId', uuidParam('lessonId'), validate, contentController.adminDeleteLesson);
 
-router.post('/videos', mediaController.adminCreateVideo);
+router.post('/videos', videoBodyValidator, validate, mediaController.adminCreateVideo);
 router.get('/videos', mediaController.adminListVideos);
 router.get('/videos/:videoId', uuidParam('videoId'), validate, mediaController.adminGetVideo);
-router.patch('/videos/:videoId', uuidParam('videoId'), validate, mediaController.adminUpdateVideo);
+router.patch('/videos/:videoId', uuidParam('videoId'), videoUpdateValidator, validate, mediaController.adminUpdateVideo);
 router.delete('/videos/:videoId', uuidParam('videoId'), validate, mediaController.adminDeleteVideo);
 
-router.post('/current-affairs', mediaController.adminCreateCurrentAffair);
+router.post('/current-affairs', currentAffairBodyValidator, validate, mediaController.adminCreateCurrentAffair);
 router.get('/current-affairs', mediaController.adminListCurrentAffairs);
 router.post('/current-affairs/upload', uploadContentFile, mediaController.adminUploadCurrentAffair);
 router.get('/current-affairs/:articleId', uuidParam('articleId'), validate, mediaController.adminGetCurrentAffair);
-router.patch('/current-affairs/:articleId', uuidParam('articleId'), validate, mediaController.adminUpdateCurrentAffair);
+router.patch('/current-affairs/:articleId', uuidParam('articleId'), currentAffairUpdateValidator, validate, mediaController.adminUpdateCurrentAffair);
 router.delete('/current-affairs/:articleId', uuidParam('articleId'), validate, mediaController.adminDeleteCurrentAffair);
 
-router.post('/tests', testController.adminCreateTest);
+router.post('/tests', testBodyValidator, validate, testController.adminCreateTest);
 router.get('/tests', testController.adminListTests);
 router.get('/tests/:testId', uuidParam('testId'), validate, testController.adminGetTest);
-router.patch('/tests/:testId', uuidParam('testId'), validate, testController.adminUpdateTest);
+router.patch('/tests/:testId', uuidParam('testId'), testUpdateValidator, validate, testController.adminUpdateTest);
 router.delete('/tests/:testId', uuidParam('testId'), validate, testController.adminDeleteTest);
-router.post('/tests/:testId/questions', uuidParam('testId'), validate, testController.adminAddQuestion);
-router.patch('/questions/:questionId', uuidParam('questionId'), validate, testController.adminUpdateQuestion);
+router.post('/tests/:testId/questions', uuidParam('testId'), questionBodyValidator, validate, testController.adminAddQuestion);
+router.post('/questions/upload', uploadQuestionImage, testController.adminUploadQuestionImage);
+router.patch('/questions/:questionId', uuidParam('questionId'), questionUpdateValidator, validate, testController.adminUpdateQuestion);
 router.delete('/questions/:questionId', uuidParam('questionId'), validate, testController.adminDeleteQuestion);
 
 router.get('/analytics/overview', platformController.analyticsOverview);
@@ -75,24 +117,30 @@ router.get('/analytics/courses', platformController.analyticsCourses);
 router.get('/analytics/tests', platformController.analyticsTests);
 router.get('/analytics/revenue', platformController.analyticsRevenue);
 
-router.post('/plans', authorizeAdmin, platformController.adminCreatePlan);
+router.post('/plans', authorizeAdmin, planBodyValidator, validate, platformController.adminCreatePlan);
 router.get('/plans', platformController.adminListPlans);
-router.patch('/plans/:planId', authorizeAdmin, uuidParam('planId'), validate, platformController.adminUpdatePlan);
+router.patch('/plans/:planId', authorizeAdmin, uuidParam('planId'), planUpdateValidator, validate, platformController.adminUpdatePlan);
 router.delete('/plans/:planId', authorizeAdmin, uuidParam('planId'), validate, platformController.adminDeletePlan);
 router.get('/subscriptions', platformController.adminSubscriptions);
 router.get('/payments', platformController.adminPayments);
 
+router.get('/faqs', platformController.adminListFaqs);
+router.post('/faqs', faqBodyValidator, validate, platformController.adminCreateFaq);
+router.get('/faqs/:faqId', uuidParam('faqId'), validate, platformController.adminGetFaq);
+router.patch('/faqs/:faqId', uuidParam('faqId'), faqUpdateValidator, validate, platformController.adminUpdateFaq);
+router.delete('/faqs/:faqId', uuidParam('faqId'), validate, platformController.adminDeleteFaq);
+
 router.get('/support/tickets', platformController.adminTickets);
 router.get('/support/tickets/:ticketId', uuidParam('ticketId'), validate, platformController.adminGetTicket);
-router.patch('/support/tickets/:ticketId/status', uuidParam('ticketId'), validate, platformController.adminUpdateTicketStatus);
-router.post('/support/tickets/:ticketId/reply', uuidParam('ticketId'), validate, platformController.adminReplyTicket);
+router.patch('/support/tickets/:ticketId/status', uuidParam('ticketId'), ticketStatusBodyValidator, validate, platformController.adminUpdateTicketStatus);
+router.post('/support/tickets/:ticketId/reply', uuidParam('ticketId'), ticketReplyValidator, validate, platformController.adminReplyTicket);
 
-router.patch('/legal/terms', authorizeAdmin, platformController.adminUpdateTerms);
-router.patch('/legal/privacy-policy', authorizeAdmin, platformController.adminUpdatePrivacy);
-router.patch('/legal/refund-policy', authorizeAdmin, platformController.adminUpdateRefund);
+router.patch('/legal/terms', authorizeAdmin, legalBodyValidator, validate, platformController.adminUpdateTerms);
+router.patch('/legal/privacy-policy', authorizeAdmin, legalBodyValidator, validate, platformController.adminUpdatePrivacy);
+router.patch('/legal/refund-policy', authorizeAdmin, legalBodyValidator, validate, platformController.adminUpdateRefund);
 
-router.post('/notifications', platformController.adminCreateNotification);
+router.post('/notifications', notificationBodyValidator, validate, platformController.adminCreateNotification);
 router.get('/notifications', platformController.adminListNotifications);
-router.post('/notifications/send', platformController.adminSendNotification);
+router.post('/notifications/send', notificationBodyValidator, validate, platformController.adminSendNotification);
 
 export default router;

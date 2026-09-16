@@ -4,9 +4,12 @@ import { ERROR_CODES, HTTP_STATUS, STAFF_ROLES, USER_STATUS } from '../config/co
 import { omit } from '../utils/case.js';
 import logger from '../config/logger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is required');
+}
 
-const publicUser = (user) => omit(user, ['passwordHash']);
+const publicUser = (user) => omit(user, ['passwordHash', 'password', 'hashedPassword']);
 
 export const authenticate = async (req, res, next) => {
   try {

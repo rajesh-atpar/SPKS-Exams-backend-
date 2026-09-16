@@ -281,16 +281,25 @@ const options = {
         post: { tags: ['Admin'], security: bearer, summary: 'Create group', responses: created }
       },
       '/api/admin/groups/{groupId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get group', parameters: [uuidParam('groupId')], responses: ok() },
         patch: { tags: ['Admin'], security: bearer, summary: 'Update group', parameters: [uuidParam('groupId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete group', parameters: [uuidParam('groupId')], responses: ok() }
       },
-      '/api/admin/classes': { post: { tags: ['Admin'], security: bearer, summary: 'Create class', responses: created } },
+      '/api/admin/classes': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List classes', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create class', responses: created }
+      },
       '/api/admin/classes/{classId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get class', parameters: [uuidParam('classId')], responses: ok() },
         patch: { tags: ['Admin'], security: bearer, summary: 'Update class', parameters: [uuidParam('classId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete class', parameters: [uuidParam('classId')], responses: ok() }
       },
-      '/api/admin/subjects': { post: { tags: ['Admin'], security: bearer, summary: 'Create subject', responses: created } },
+      '/api/admin/subjects': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List subjects', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create subject', responses: created }
+      },
       '/api/admin/subjects/{subjectId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get subject', parameters: [uuidParam('subjectId')], responses: ok() },
         patch: { tags: ['Admin'], security: bearer, summary: 'Update subject', parameters: [uuidParam('subjectId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete subject', parameters: [uuidParam('subjectId')], responses: ok() }
       },
@@ -304,13 +313,21 @@ const options = {
         patch: { tags: ['Admin'], security: bearer, summary: 'Update content', parameters: [uuidParam('contentId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete content', parameters: [uuidParam('contentId')], responses: ok() }
       },
-      '/api/admin/chapters': { post: { tags: ['Admin'], security: bearer, summary: 'Create chapter', responses: created } },
+      '/api/admin/chapters': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List chapters', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create chapter', responses: created }
+      },
       '/api/admin/chapters/{chapterId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get chapter', parameters: [uuidParam('chapterId')], responses: ok() },
         patch: { tags: ['Admin'], security: bearer, summary: 'Update chapter', parameters: [uuidParam('chapterId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete chapter', parameters: [uuidParam('chapterId')], responses: ok() }
       },
-      '/api/admin/lessons': { post: { tags: ['Admin'], security: bearer, summary: 'Create lesson', responses: created } },
+      '/api/admin/lessons': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List lessons', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create lesson', responses: created }
+      },
       '/api/admin/lessons/{lessonId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get lesson', parameters: [uuidParam('lessonId')], responses: ok() },
         patch: { tags: ['Admin'], security: bearer, summary: 'Update lesson', parameters: [uuidParam('lessonId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete lesson', parameters: [uuidParam('lessonId')], responses: ok() }
       },
@@ -343,6 +360,7 @@ const options = {
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete test', parameters: [uuidParam('testId')], responses: ok() }
       },
       '/api/admin/tests/{testId}/questions': { post: { tags: ['Admin'], security: bearer, summary: 'Add question', parameters: [uuidParam('testId')], responses: created } },
+      '/api/admin/questions/upload': { post: { tags: ['Admin'], security: bearer, summary: 'Upload question image', responses: created } },
       '/api/admin/questions/{questionId}': {
         patch: { tags: ['Admin'], security: bearer, summary: 'Update question', parameters: [uuidParam('questionId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete question', parameters: [uuidParam('questionId')], responses: ok() }
@@ -373,7 +391,16 @@ const options = {
         get: { tags: ['Admin'], security: bearer, summary: 'List notifications', responses: ok() },
         post: { tags: ['Admin'], security: bearer, summary: 'Create notification', responses: created }
       },
-      '/api/admin/notifications/send': { post: { tags: ['Admin'], security: bearer, summary: 'Send notification', responses: ok() } }
+      '/api/admin/notifications/send': { post: { tags: ['Admin'], security: bearer, summary: 'Send notification', responses: ok() } },
+      '/api/admin/faqs': {
+        get: { tags: ['Admin'], security: bearer, summary: 'List FAQs', responses: ok() },
+        post: { tags: ['Admin'], security: bearer, summary: 'Create FAQ', responses: created }
+      },
+      '/api/admin/faqs/{faqId}': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get FAQ', parameters: [uuidParam('faqId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update FAQ', parameters: [uuidParam('faqId')], responses: ok() },
+        delete: { tags: ['Admin'], security: bearer, summary: 'Delete FAQ', parameters: [uuidParam('faqId')], responses: ok() }
+      }
     }
   },
   apis: []

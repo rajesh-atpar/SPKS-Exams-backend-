@@ -8,8 +8,28 @@ export class BaseRepository {
   }
 
   wrap(error) {
-    const err = new Error(error.message || 'Database error');
-    err.statusCode = HTTP_STATUS.BAD_REQUEST;
+    const nested = error?.cause || error;
+    const causeCode = nested?.code || nested?.cause?.code;
+    const causeMessage = nested?.cause?.message || nested?.message || error?.message;
+    const isNetworkFailure =
+      String(error?.message || '').includes('fetch failed')
+      || ['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'UND_ERR_CONNECT_TIMEOUT'].includes(causeCode);
+
+    const isMissingTable =
+      String(error?.message || '').includes('schema cache')
+      || String(error?.code || '') === 'PGRST205';
+
+    const err = new Error(
+      isNetworkFailure
+        ? `Database unreachable${causeCode ? ` (${causeCode})` : ''}: ${causeMessage || 'fetch failed'}`
+        : isMissingTable
+          ? `Missing database table '${this.table}'. Run database/schema.sql in the Supabase SQL editor.`
+          : (error.message || 'Database error')
+    );
+    err.cause = error;
+    err.statusCode = isNetworkFailure
+      ? HTTP_STATUS.SERVICE_UNAVAILABLE
+      : HTTP_STATUS.BAD_REQUEST;
     err.code = ERROR_CODES.DATABASE_ERROR;
     return err;
   }
@@ -110,6 +130,24 @@ export class BaseRepository {
     const { error } = await supabaseAdmin.from(this.table).delete().eq('id', id);
     if (error) throw this.wrap(error);
     return true;
+  }
+
+  async findAll(options = {}) {
+    const limit = 100;
+    const items = [];
+    let page = 1;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (items.length < total) {
+      const batch = await this.findMany({ ...options, page, limit });
+      total = batch.total;
+      items.push(...batch.items);
+      if (!batch.items.length || batch.items.length < limit) break;
+      page += 1;
+      if (page > 500) break;
+    }
+
+    return { items, total: items.length };
   }
 
   async increment(id, column, amount = 1) {

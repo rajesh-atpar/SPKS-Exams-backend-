@@ -5,10 +5,9 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const logDir = path.join(__dirname, '../../logs');
+const isProduction = process.env.NODE_ENV === 'production';
 
-// Define log format
 const logFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
   winston.format.errors({ stack: true }),
@@ -16,78 +15,63 @@ const logFormat = winston.format.combine(
   winston.format.json()
 );
 
-// Console format for development
-const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.printf(({ timestamp, level, message, ...metadata }) => {
-    let msg = `${timestamp} [${level}]: ${message}`;
-    if (Object.keys(metadata).length > 0) {
-      msg += ` ${JSON.stringify(metadata)}`;
-    }
-    return msg;
-  })
-);
+const consoleFormat = isProduction
+  ? logFormat
+  : winston.format.combine(
+    winston.format.colorize(),
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.printf(({ timestamp, level, message, ...metadata }) => {
+      let msg = `${timestamp} [${level}]: ${message}`;
+      if (Object.keys(metadata).length > 0) {
+        msg += ` ${JSON.stringify(metadata)}`;
+      }
+      return msg;
+    })
+  );
 
-// Daily rotate file transport for all logs
-const dailyRotateFileTransport = new DailyRotateFile({
-  filename: path.join(logDir, 'application-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  maxSize: '20m',
-  maxFiles: '14d',
-  format: logFormat
-});
-
-// Daily rotate file transport for error logs
-const errorRotateFileTransport = new DailyRotateFile({
-  filename: path.join(logDir, 'error-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  level: 'error',
-  maxSize: '20m',
-  maxFiles: '30d',
-  format: logFormat
-});
-
-// Daily rotate file transport for audit logs
-const auditRotateFileTransport = new DailyRotateFile({
-  filename: path.join(logDir, 'audit-%DATE%.log'),
-  datePattern: 'YYYY-MM-DD',
-  maxSize: '20m',
-  maxFiles: '90d',
-  format: logFormat
-});
-
-// Create logger instance
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
   format: logFormat,
   transports: [
-    dailyRotateFileTransport,
-    errorRotateFileTransport
+    new winston.transports.Console({ format: consoleFormat })
   ],
   exitOnError: false
 });
 
-// Add console transport in development
-if (process.env.NODE_ENV !== 'production') {
-  logger.add(new winston.transports.Console({
-    format: consoleFormat
+if (process.env.LOG_TO_FILE !== 'false') {
+  logger.add(new DailyRotateFile({
+    filename: path.join(logDir, 'application-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    maxSize: '20m',
+    maxFiles: '14d',
+    format: logFormat
+  }));
+  logger.add(new DailyRotateFile({
+    filename: path.join(logDir, 'error-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    level: 'error',
+    maxSize: '20m',
+    maxFiles: '30d',
+    format: logFormat
   }));
 }
 
-// Create audit logger
 export const auditLogger = winston.createLogger({
   level: 'info',
   format: logFormat,
   transports: [
-    auditRotateFileTransport
+    new winston.transports.Console({ format: consoleFormat })
   ],
   exitOnError: false
 });
 
-if (process.env.NODE_ENV !== 'production') {
-  auditLogger.add(new winston.transports.Console({
-    format: consoleFormat
+if (process.env.LOG_TO_FILE !== 'false') {
+  auditLogger.add(new DailyRotateFile({
+    filename: path.join(logDir, 'audit-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    maxSize: '20m',
+    maxFiles: '90d',
+    format: logFormat
   }));
 }
 

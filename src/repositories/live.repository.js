@@ -1,15 +1,26 @@
 import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '../services/supabaseClient.js';
+import { toSnake } from '../utils/case.js';
 import { BaseRepository } from './base.repository.js';
+import { readStore, writeStore } from './file-store.js';
 
 const missing = (error) => {
-  const message = error?.message || '';
+  const message = `${error?.message || ''} ${error?.cause?.message || ''}`;
   return (
     message.includes('schema cache')
     || message.includes('Could not find the table')
+    || message.includes('Missing database table')
     || message.includes('does not exist')
   );
 };
+
+const missingColumn = (error) => {
+  const message = `${error?.message || ''} ${error?.cause?.message || ''}`;
+  const match = message.match(/Could not find the '([^']+)' column/i);
+  return match?.[1] || null;
+};
+
+const isBcryptHash = (value) => typeof value === 'string' && /^\$2[aby]\$/.test(value);
 
 const splitName = (fullName = '') => {
   const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
@@ -22,37 +33,59 @@ const splitName = (fullName = '') => {
 export class UsersRepository extends BaseRepository {
   constructor() {
     super('users');
+    this.rows = readStore('users');
+  }
+
+  persist() {
+    writeStore('users', this.rows);
+  }
+
+  loadLocal() {
+    this.rows = readStore('users');
+    return this.rows;
   }
 
   toDb(payload) {
     const row = {};
     if (payload.email !== undefined) row.email = payload.email;
     if (payload.phone !== undefined) row.phone = payload.phone;
-    if (payload.passwordHash !== undefined) row.password_hash = payload.passwordHash;
-    if (payload.firstName !== undefined || payload.lastName !== undefined || payload.fullName !== undefined) {
-      row.full_name = payload.fullName
-        || [payload.firstName, payload.lastName].filter(Boolean).join(' ').trim()
-        || 'User';
+    if (payload.passwordHash !== undefined) {
+      row.password_hash = payload.passwordHash;
+      row.password = payload.passwordHash;
+    }
+    if (payload.firstName !== undefined) row.first_name = payload.firstName;
+    if (payload.lastName !== undefined) row.last_name = payload.lastName;
+    if (payload.firstName !== undefined || payload.lastName !== undefined) {
+      const fullName = [payload.firstName, payload.lastName].filter(Boolean).join(' ').trim();
+      if (fullName) row.full_name = fullName;
     }
     if (payload.profileImage !== undefined || payload.profileImageUrl !== undefined) {
+      row.profile_image = payload.profileImage || payload.profileImageUrl || null;
       row.profile_image_url = payload.profileImage || payload.profileImageUrl || null;
     }
+    if (payload.state !== undefined) row.state = payload.state;
+    if (payload.role !== undefined) row.role = payload.role;
     if (payload.status !== undefined) row.status = payload.status;
     if (payload.lastLoginAt !== undefined) row.last_login_at = payload.lastLoginAt;
-    if (payload.emailVerified !== undefined) row.email_verified = payload.emailVerified;
     return row;
   }
 
   fromDb(row) {
     if (!row) return null;
     const names = splitName(row.fullName);
+    const passwordHash = [row.passwordHash, row.hashedPassword, row.password]
+      .find((value) => isBcryptHash(value)) || row.passwordHash || null;
+    const rest = { ...row };
+    delete rest.password;
+    delete rest.hashedPassword;
     return {
-      ...row,
+      ...rest,
       firstName: row.firstName || names.firstName,
       lastName: row.lastName || names.lastName,
       profileImage: row.profileImage || row.profileImageUrl || null,
       role: row.role || 'user',
-      state: row.state || null
+      state: row.state || null,
+      passwordHash
     };
   }
 
@@ -60,41 +93,195 @@ export class UsersRepository extends BaseRepository {
     return this.fromDb(super.map(row));
   }
 
-  async create(payload) {
-    const { data, error } = await supabaseAdmin
-      .from(this.table)
-      .insert(this.toDb(payload))
-      .select('*')
-      .single();
+  localUser(payload) {
+    return this.map({
+      id: payload.id || randomUUID(),
+      firstName: payload.firstName || '',
+      lastName: payload.lastName || '',
+      email: payload.email,
+      phone: payload.phone || null,
+      passwordHash: payload.passwordHash,
+      profileImage: payload.profileImage || payload.profileImageUrl || null,
+      state: payload.state || null,
+      role: payload.role || 'user',
+      status: payload.status || 'active',
+      lastLoginAt: payload.lastLoginAt || null,
+      createdAt: payload.createdAt || new Date().toISOString(),
+      updatedAt: payload.updatedAt || new Date().toISOString()
+    });
+  }
 
-    if (error) throw this.wrap(error);
-    return this.map(data);
+  matchesLocal(row, filters = {}) {
+    return Object.entries(filters).every(([key, value]) => {
+      if (value === undefined || value === '') return true;
+      if (key === 'email') {
+        return String(row.email || '').toLowerCase() === String(value).toLowerCase();
+      }
+      return row[key] === value;
+    });
+  }
+
+  findLocal(filters = {}) {
+    return this.loadLocal().find((row) => this.matchesLocal(row, filters)) || null;
+  }
+
+  upsertLocal(user) {
+    if (!user?.id && !user?.email) return;
+    this.loadLocal();
+    const index = this.rows.findIndex((row) => row.id === user.id || this.matchesLocal(row, { email: user.email }));
+    const next = this.localUser({
+      ...(index >= 0 ? this.rows[index] : {}),
+      ...user,
+      passwordHash: user.passwordHash || (index >= 0 ? this.rows[index].passwordHash : null)
+    });
+    if (index >= 0) this.rows[index] = next;
+    else this.rows.push(next);
+    this.persist();
+    return next;
+  }
+
+  mergeLocalHash(user, filters = {}) {
+    if (!user) return this.findLocal(filters);
+    if (isBcryptHash(user.passwordHash)) return user;
+    const local = this.findLocal(user.id ? { id: user.id } : filters)
+      || (user.email ? this.findLocal({ email: user.email }) : null)
+      || this.findLocal(filters);
+    if (!local) return user;
+    return {
+      ...user,
+      passwordHash: local.passwordHash || user.passwordHash,
+      role: user.role && user.role !== 'user' ? user.role : (local.role || user.role)
+    };
+  }
+
+  async writeRow(payload, id) {
+    const row = this.toDb(payload);
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const query = id
+        ? supabaseAdmin.from(this.table).update(row).eq('id', id)
+        : supabaseAdmin.from(this.table).insert(row);
+      const { data, error } = await query.select('*').single();
+
+      if (!error) {
+        const mapped = this.map(data) || {};
+        if (!mapped.passwordHash && payload.passwordHash) mapped.passwordHash = payload.passwordHash;
+        return mapped;
+      }
+
+      const column = missingColumn(error);
+      if (column && Object.prototype.hasOwnProperty.call(row, column)) {
+        delete row[column];
+        continue;
+      }
+
+      if (missing(error)) return null;
+      throw this.wrap(error);
+    }
+
+    return null;
+  }
+
+  async findById(id, select = '*') {
+    try {
+      const user = await super.findById(id, select);
+      return this.mergeLocalHash(user, { id });
+    } catch (error) {
+      if (!missing(error)) throw error;
+      return this.loadLocal().find((row) => row.id === id) || null;
+    }
+  }
+
+  async findOne(filters, select = '*') {
+    try {
+      let query = supabaseAdmin.from(this.table).select(select);
+      Object.entries(toSnake(filters)).forEach(([key, value]) => {
+        query = key === 'email' ? query.ilike('email', value) : query.eq(key, value);
+      });
+      const { data, error } = await query.maybeSingle();
+      if (error) {
+        if (!missing(error)) throw this.wrap(error);
+      } else {
+        return this.mergeLocalHash(this.map(data), filters);
+      }
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+    return this.findLocal(filters);
+  }
+
+  async findMany(options = {}) {
+    try {
+      return await super.findMany(options);
+    } catch (error) {
+      if (!missing(error)) throw error;
+      const { filters = {}, page = 1, limit = 20, search, searchFields = [] } = options;
+      let items = this.loadLocal().filter((row) => this.matchesLocal(row, filters));
+      if (search && searchFields.length) {
+        const term = String(search).toLowerCase();
+        items = items.filter((row) => searchFields.some((field) => String(row[field] || '').toLowerCase().includes(term)));
+      }
+      return { items: items.slice((page - 1) * limit, page * limit), total: items.length };
+    }
+  }
+
+  async create(payload) {
+    try {
+      const created = await this.writeRow(payload);
+      if (created) {
+        return this.upsertLocal({ ...created, ...payload, passwordHash: created.passwordHash || payload.passwordHash });
+      }
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+
+    const row = this.localUser(payload);
+    this.upsertLocal(row);
+    return row;
   }
 
   async update(id, payload) {
-    const updates = this.toDb(payload);
-    if (payload.firstName !== undefined || payload.lastName !== undefined) {
-      const current = await this.findById(id);
-      const firstName = payload.firstName !== undefined ? payload.firstName : current?.firstName;
-      const lastName = payload.lastName !== undefined ? payload.lastName : current?.lastName;
-      updates.full_name = [firstName, lastName].filter(Boolean).join(' ').trim() || current?.fullName || 'User';
+    try {
+      const updated = await this.writeRow(payload, id);
+      if (updated) {
+        return this.upsertLocal({ ...updated, ...payload, id, passwordHash: updated.passwordHash || payload.passwordHash });
+      }
+    } catch (error) {
+      if (!missing(error)) throw error;
     }
 
-    const { data, error } = await supabaseAdmin
-      .from(this.table)
-      .update(updates)
-      .eq('id', id)
-      .select('*')
-      .single();
+    this.loadLocal();
+    const row = this.rows.find((item) => item.id === id);
+    if (!row) {
+      return this.upsertLocal({ id, ...payload });
+    }
+    Object.assign(row, payload, { updatedAt: new Date().toISOString() });
+    this.persist();
+    return this.map(row);
+  }
 
-    if (error) throw this.wrap(error);
-    return this.map(data);
+  async remove(id) {
+    try {
+      await super.remove(id);
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+    this.loadLocal();
+    this.rows = this.rows.filter((row) => row.id !== id);
+    this.persist();
+    return true;
   }
 }
 
 export class CoursesRepository extends BaseRepository {
   constructor() {
     super('courses');
+    this.rows = null;
+  }
+
+  localRows() {
+    if (!this.rows) this.rows = DEFAULT_COURSES.map((row) => ({ ...row }));
+    return this.rows;
   }
 
   map(row) {
@@ -104,7 +291,7 @@ export class CoursesRepository extends BaseRepository {
       ...course,
       imageUrl: course.imageUrl || course.thumbnailUrl || null,
       icon: course.icon || null,
-      isActive: course.isActive ?? course.isPublished ?? false
+      isActive: course.isActive ?? course.isPublished ?? true
     };
   }
 
@@ -125,6 +312,7 @@ export class CoursesRepository extends BaseRepository {
     if (payload.imageUrl !== undefined || payload.thumbnailUrl !== undefined) {
       row.thumbnail_url = payload.imageUrl || payload.thumbnailUrl || null;
     }
+    if (payload.icon !== undefined) row.icon = payload.icon;
     if (payload.isActive !== undefined || payload.isPublished !== undefined) {
       row.is_published = payload.isActive ?? payload.isPublished;
     }
@@ -132,39 +320,14 @@ export class CoursesRepository extends BaseRepository {
     return row;
   }
 
-  async findMany(options = {}) {
-    return super.findMany({
-      ...options,
-      filters: this.toFilters(options.filters)
+  matchesLocal(row, filters = {}) {
+    return Object.entries(filters).every(([key, value]) => {
+      if (value === undefined || value === null || value === '') return true;
+      if (key === 'isActive' || key === 'isPublished') {
+        return row.isActive === value || row.isPublished === value;
+      }
+      return row[key] === value;
     });
-  }
-
-  async create(payload) {
-    const { data, error } = await supabaseAdmin
-      .from(this.table)
-      .insert(this.toDb(payload))
-      .select('*')
-      .single();
-    if (error) throw this.wrap(error);
-    return this.map(data);
-  }
-
-  async update(id, payload) {
-    const { data, error } = await supabaseAdmin
-      .from(this.table)
-      .update(this.toDb(payload))
-      .eq('id', id)
-      .select('*')
-      .single();
-    if (error) throw this.wrap(error);
-    return this.map(data);
-  }
-}
-
-export class MemoryFallbackRepository extends BaseRepository {
-  constructor(table, seed = []) {
-    super(table);
-    this.rows = seed.map((row) => ({ ...row }));
   }
 
   async findById(id, select = '*') {
@@ -172,7 +335,7 @@ export class MemoryFallbackRepository extends BaseRepository {
       return await super.findById(id, select);
     } catch (error) {
       if (!missing(error)) throw error;
-      return this.rows.find((row) => row.id === id) || null;
+      return this.localRows().find((row) => row.id === id || row.slug === id) || null;
     }
   }
 
@@ -181,7 +344,116 @@ export class MemoryFallbackRepository extends BaseRepository {
       return await super.findOne(filters, select);
     } catch (error) {
       if (!missing(error)) throw error;
-      return this.rows.find((row) => Object.entries(filters).every(([key, value]) => row[key] === value)) || null;
+      return this.localRows().find((row) => this.matchesLocal(row, filters)) || null;
+    }
+  }
+
+  async findMany(options = {}) {
+    try {
+      return await super.findMany({
+        ...options,
+        filters: this.toFilters(options.filters)
+      });
+    } catch (error) {
+      if (!missing(error)) throw error;
+      const { filters = {}, page = 1, limit = 20, search, searchFields = ['name'] } = options;
+      let items = this.localRows().filter((row) => this.matchesLocal(row, filters));
+      if (search && searchFields.length) {
+        const term = String(search).toLowerCase();
+        items = items.filter((row) => searchFields.some((field) => String(row[field] || '').toLowerCase().includes(term)));
+      }
+      return { items: items.slice((page - 1) * limit, page * limit), total: items.length };
+    }
+  }
+
+  async create(payload) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from(this.table)
+        .insert(this.toDb(payload))
+        .select('*')
+        .single();
+      if (!error) return this.map(data);
+      if (!missing(error)) throw this.wrap(error);
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+
+    const row = this.map({
+      id: randomUUID(),
+      isActive: true,
+      displayOrder: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      ...payload
+    });
+    this.localRows().push(row);
+    return row;
+  }
+
+  async update(id, payload) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from(this.table)
+        .update(this.toDb(payload))
+        .eq('id', id)
+        .select('*')
+        .single();
+      if (!error) return this.map(data);
+      if (!missing(error)) throw this.wrap(error);
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+
+    const row = this.localRows().find((item) => item.id === id);
+    if (!row) return null;
+    Object.assign(row, payload, { updatedAt: new Date().toISOString() });
+    return this.map(row);
+  }
+
+  async remove(id) {
+    try {
+      return await super.remove(id);
+    } catch (error) {
+      if (!missing(error)) throw error;
+    }
+    this.rows = this.localRows().filter((row) => row.id !== id);
+    return true;
+  }
+}
+
+export class MemoryFallbackRepository extends BaseRepository {
+  constructor(table, seed = [], { persist = false } = {}) {
+    super(table);
+    this.persistToDisk = persist;
+    const stored = persist ? readStore(table) : [];
+    this.rows = stored.length ? stored : seed.map((row) => ({ ...row }));
+  }
+
+  loadLocal() {
+    if (this.persistToDisk) this.rows = readStore(this.table);
+    return this.rows;
+  }
+
+  persist() {
+    if (this.persistToDisk) writeStore(this.table, this.rows);
+  }
+
+  async findById(id, select = '*') {
+    try {
+      return await super.findById(id, select);
+    } catch (error) {
+      if (!missing(error)) throw error;
+      return this.loadLocal().find((row) => row.id === id) || null;
+    }
+  }
+
+  async findOne(filters, select = '*') {
+    try {
+      return await super.findOne(filters, select);
+    } catch (error) {
+      if (!missing(error)) throw error;
+      return this.loadLocal().find((row) => Object.entries(filters).every(([key, value]) => row[key] === value)) || null;
     }
   }
 
@@ -191,7 +463,7 @@ export class MemoryFallbackRepository extends BaseRepository {
     } catch (error) {
       if (!missing(error)) throw error;
       const { filters = {}, page = 1, limit = 20, search, searchFields = [] } = options;
-      let items = this.rows.filter((row) => (
+      let items = this.loadLocal().filter((row) => (
         Object.entries(filters).every(([key, value]) => value === undefined || value === '' || row[key] === value)
       ));
       if (search && searchFields.length) {
@@ -210,6 +482,7 @@ export class MemoryFallbackRepository extends BaseRepository {
       if (!missing(error)) throw error;
       const row = { id: randomUUID(), ...payload, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       this.rows.push(row);
+      this.persist();
       return row;
     }
   }
@@ -222,6 +495,7 @@ export class MemoryFallbackRepository extends BaseRepository {
       const row = this.rows.find((item) => item.id === id);
       if (!row) return null;
       Object.assign(row, payload, { updatedAt: new Date().toISOString() });
+      this.persist();
       return row;
     }
   }
@@ -232,6 +506,7 @@ export class MemoryFallbackRepository extends BaseRepository {
     } catch (error) {
       if (!missing(error)) throw error;
       this.rows = this.rows.filter((row) => row.id !== id);
+      this.persist();
       return true;
     }
   }

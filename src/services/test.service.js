@@ -2,6 +2,7 @@ import { repos } from '../repositories/repos.js';
 import { ATTEMPT_STATUS } from '../config/constants.js';
 import { getPaginationParams } from '../utils/pagination.js';
 import { badRequest, forbidden, notFound } from '../utils/errors.js';
+import fileService from './file.service.js';
 
 const hideAnswers = (question) => {
   const { correctAnswer, ...safe } = question;
@@ -90,6 +91,10 @@ export class TestService {
     await repos.questions.remove(questionId);
     await syncTestTotals(question.testId);
     return { message: 'Question deleted' };
+  }
+
+  async uploadQuestionImage(file) {
+    return fileService.uploadQuestionImage(file);
   }
 
   async startTest(userId, testId) {

@@ -20,7 +20,7 @@ const parseDuration = (value) => {
   return amount * unit;
 };
 
-const publicUser = (user) => omit(user, ['passwordHash']);
+const publicUser = (user) => omit(user, ['passwordHash', 'password', 'hashedPassword']);
 
 const isUsableStatus = (status) => {
   const value = String(status || 'active').toLowerCase();
@@ -118,7 +118,15 @@ export class AuthService {
     const user = await repos.users.findOne({ email: email.toLowerCase() });
     if (!user) throw unauthorized('Invalid credentials');
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
+    const passwordHash = user.passwordHash;
+    if (!passwordHash) throw unauthorized('Invalid credentials');
+
+    let valid = false;
+    try {
+      valid = await bcrypt.compare(password, passwordHash);
+    } catch {
+      valid = false;
+    }
     if (!valid) throw unauthorized('Invalid credentials');
 
     if (!isUsableStatus(user.status)) {

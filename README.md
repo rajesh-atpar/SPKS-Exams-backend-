@@ -53,3 +53,24 @@ Send `Authorization: Bearer <accessToken>` on protected routes. Use `refreshToke
 Full docs: `http://localhost:4000/api-docs`
 
 Correct answers are omitted from app test payloads until the attempt is submitted.
+
+## Production
+
+```bash
+npm ci
+npm run build
+NODE_ENV=production npm start
+```
+
+Set these on the host:
+
+- `NODE_ENV=production`
+- `PORT` (host-provided)
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `JWT_SECRET` (long random string, not the example value)
+- `FRONTEND_ADMIN_URL` and `FRONTEND_STUDENT_URL` (exact origin URLs)
+- Optional: Razorpay, SMTP, `SWAGGER_ENABLED=false`
+
+Run `database/schema.sql` in Supabase before go-live, then `NODE_ENV=production npm run seed:admin` once and change the default password.

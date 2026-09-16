@@ -1,13 +1,17 @@
 import { supabaseAdmin } from './supabaseClient.js';
 
 const count = async (table, filters = {}) => {
-  let query = supabaseAdmin.from(table).select('id', { count: 'exact', head: true });
-  Object.entries(filters).forEach(([key, value]) => {
-    query = query.eq(key, value);
-  });
-  const { count: total, error } = await query;
-  if (error) throw error;
-  return total || 0;
+  try {
+    let query = supabaseAdmin.from(table).select('id', { count: 'exact', head: true });
+    Object.entries(filters).forEach(([key, value]) => {
+      query = query.eq(key, value);
+    });
+    const { count: total, error } = await query;
+    if (error) return 0;
+    return total || 0;
+  } catch {
+    return 0;
+  }
 };
 
 const sum = (rows, field) => rows.reduce((total, row) => total + Number(row[field] || 0), 0);
@@ -61,17 +65,23 @@ export class AnalyticsService {
   }
 
   async revenue() {
-    const { data, error } = await supabaseAdmin
-      .from('payments')
-      .select('amount, status, created_at');
-    if (error) throw error;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('payments')
+        .select('amount, status, created_at');
+      if (error) {
+        return { totalRevenue: 0, paidCount: 0, failedCount: 0 };
+      }
 
-    const paid = (data || []).filter((row) => row.status === 'paid');
-    return {
-      totalRevenue: sum(paid, 'amount'),
-      paidCount: paid.length,
-      failedCount: (data || []).filter((row) => row.status === 'failed').length
-    };
+      const paid = (data || []).filter((row) => row.status === 'paid');
+      return {
+        totalRevenue: sum(paid, 'amount'),
+        paidCount: paid.length,
+        failedCount: (data || []).filter((row) => row.status === 'failed').length
+      };
+    } catch {
+      return { totalRevenue: 0, paidCount: 0, failedCount: 0 };
+    }
   }
 }
 

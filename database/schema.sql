@@ -84,6 +84,22 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS students (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  state VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS admins (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'editor', 'support')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -490,6 +506,8 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 CREATE INDEX IF NOT EXISTS idx_users_role_status ON users(role, status);
+CREATE INDEX IF NOT EXISTS idx_students_user ON students(user_id);
+CREATE INDEX IF NOT EXISTS idx_admins_user ON admins(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_groups_course ON groups(course_id);
 CREATE INDEX IF NOT EXISTS idx_classes_group ON classes(group_id);
@@ -521,7 +539,7 @@ DECLARE
   table_name TEXT;
 BEGIN
   FOREACH table_name IN ARRAY ARRAY[
-    'users', 'user_settings', 'courses', 'groups', 'classes', 'subjects',
+    'users', 'students', 'admins', 'user_settings', 'courses', 'groups', 'classes', 'subjects',
     'chapters', 'lessons', 'content', 'videos', 'current_affairs', 'tests',
     'questions', 'test_attempts', 'test_answers', 'user_progress', 'plans',
     'subscriptions', 'payments', 'faqs', 'support_tickets', 'legal_documents'
@@ -541,6 +559,8 @@ END $$;
 -- ============================================
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE password_resets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;

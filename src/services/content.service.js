@@ -98,7 +98,9 @@ export class ContentService {
   }
 
   async listLessons(chapterId, query, { admin = false } = {}) {
-    await this.getChapter(chapterId, { admin });
+    if (chapterId) {
+      await this.getChapter(chapterId, { admin });
+    }
     const { page, limit } = getPaginationParams(query);
     const { items, total } = await repos.lessons.findMany({
       filters: { chapterId, ...(admin ? {} : { isPublished: true }) },

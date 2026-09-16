@@ -1,4 +1,3 @@
-import { BaseRepository } from './base.repository.js';
 import {
   CoursesRepository,
   DEFAULT_FAQS,
@@ -10,22 +9,22 @@ import {
 
 export const repos = {
   users: new UsersRepository(),
-  refreshTokens: new MemoryFallbackRepository('refresh_tokens'),
+  refreshTokens: new MemoryFallbackRepository('refresh_tokens', [], { persist: true }),
   passwordResets: new MemoryFallbackRepository('password_resets'),
   userSettings: new MemoryFallbackRepository('user_settings'),
   deviceTokens: new MemoryFallbackRepository('device_tokens'),
   courses: new CoursesRepository(),
   groups: new MemoryFallbackRepository('groups'),
   classes: new MemoryFallbackRepository('classes'),
-  subjects: new BaseRepository('subjects'),
-  chapters: new BaseRepository('chapters'),
+  subjects: new MemoryFallbackRepository('subjects'),
+  chapters: new MemoryFallbackRepository('chapters'),
   lessons: new MemoryFallbackRepository('lessons'),
   content: new MemoryFallbackRepository('study_materials'),
   videos: new MemoryFallbackRepository('video_lectures'),
   currentAffairs: new MemoryFallbackRepository('current_affairs'),
   bookmarks: new MemoryFallbackRepository('bookmarks'),
-  tests: new BaseRepository('tests'),
-  questions: new BaseRepository('questions'),
+  tests: new MemoryFallbackRepository('tests'),
+  questions: new MemoryFallbackRepository('questions'),
   attempts: new MemoryFallbackRepository('test_attempts'),
   answers: new MemoryFallbackRepository('test_answers'),
   results: new MemoryFallbackRepository('test_results'),
@@ -33,13 +32,13 @@ export const repos = {
   activity: new MemoryFallbackRepository('user_activity'),
   lessonCompletions: new MemoryFallbackRepository('lesson_completions'),
   plans: new MemoryFallbackRepository('plans', DEFAULT_PLANS),
-  subscriptions: new BaseRepository('subscriptions'),
-  payments: new BaseRepository('payments'),
+  subscriptions: new MemoryFallbackRepository('subscriptions'),
+  payments: new MemoryFallbackRepository('payments'),
   faqs: new MemoryFallbackRepository('faq', DEFAULT_FAQS),
-  tickets: new BaseRepository('support_tickets'),
+  tickets: new MemoryFallbackRepository('support_tickets'),
   messages: new MemoryFallbackRepository('support_messages'),
   legal: new MemoryFallbackRepository('legal_documents', DEFAULT_LEGAL),
-  notifications: new BaseRepository('notifications'),
-  students: new BaseRepository('students'),
-  admins: new BaseRepository('admins')
+  notifications: new MemoryFallbackRepository('notifications'),
+  students: new MemoryFallbackRepository('students'),
+  admins: new MemoryFallbackRepository('admins')
 };

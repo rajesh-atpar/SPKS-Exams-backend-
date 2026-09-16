@@ -12,10 +12,7 @@ export const generalRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for health check
-    return req.path === '/api/health';
-  }
+  skip: (req) => req.path === '/health' || req.originalUrl?.startsWith('/api/health')
 });
 
 // Strict rate limiter for authentication endpoints

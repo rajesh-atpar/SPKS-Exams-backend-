@@ -2,6 +2,7 @@ import testService from '../services/test.service.js';
 import { HTTP_STATUS } from '../config/constants.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { paginatedResponse, successResponse } from '../utils/response.js';
+import { badRequest } from '../utils/errors.js';
 
 export const listTests = asyncHandler(async (req, res) => {
   const data = await testService.listTests(req.query);
@@ -64,4 +65,9 @@ export const adminUpdateQuestion = asyncHandler(async (req, res) => {
 
 export const adminDeleteQuestion = asyncHandler(async (req, res) => {
   return successResponse(res, 'Question deleted', await testService.deleteQuestion(req.params.questionId));
+});
+
+export const adminUploadQuestionImage = asyncHandler(async (req, res) => {
+  if (!req.file) throw badRequest('Question image is required');
+  return successResponse(res, 'Question image uploaded', await testService.uploadQuestionImage(req.file), HTTP_STATUS.CREATED);
 });

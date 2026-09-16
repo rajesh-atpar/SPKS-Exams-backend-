@@ -4,18 +4,59 @@ import { getPaginationParams } from '../utils/pagination.js';
 import { forbidden, notFound } from '../utils/errors.js';
 
 export class SupportService {
-  async listFaqs() {
+  async listFaqs({ admin = false } = {}) {
     try {
       const { items } = await repos.faqs.findMany({
         limit: 100,
-        orderBy: 'created_at',
-        order: 'desc'
+        orderBy: 'display_order',
+        order: 'asc'
       });
       const published = items.filter((item) => item.isPublished !== false);
+      if (admin) return items.length ? items : DEFAULT_FAQS;
       return published.length ? published : DEFAULT_FAQS;
     } catch {
       return DEFAULT_FAQS;
     }
+  }
+
+  async listAllFaqs(query) {
+    const { page, limit } = getPaginationParams(query);
+    const { items, total } = await repos.faqs.findMany({
+      page,
+      limit,
+      search: query.search,
+      searchFields: ['question', 'answer', 'category'],
+      orderBy: 'display_order',
+      order: 'asc'
+    });
+    return { items: items.length ? items : DEFAULT_FAQS, total: items.length ? total : DEFAULT_FAQS.length, page, limit };
+  }
+
+  async getFaq(faqId) {
+    const faq = await repos.faqs.findById(faqId) || DEFAULT_FAQS.find((item) => item.id === faqId);
+    if (!faq) throw notFound('FAQ');
+    return faq;
+  }
+
+  createFaq(payload) {
+    return repos.faqs.create({
+      question: payload.question,
+      answer: payload.answer,
+      category: payload.category || 'general',
+      displayOrder: payload.displayOrder ?? 0,
+      isPublished: payload.isPublished !== false
+    });
+  }
+
+  async updateFaq(faqId, payload) {
+    await this.getFaq(faqId);
+    return repos.faqs.update(faqId, payload);
+  }
+
+  async deleteFaq(faqId) {
+    await this.getFaq(faqId);
+    await repos.faqs.remove(faqId);
+    return { message: 'FAQ deleted' };
   }
 
   async createTicket(userId, { subject, message }) {

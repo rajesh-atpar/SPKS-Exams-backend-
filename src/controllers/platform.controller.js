@@ -46,6 +46,27 @@ export const listFaqs = asyncHandler(async (req, res) => {
   return successResponse(res, 'FAQs fetched successfully', await supportService.listFaqs());
 });
 
+export const adminListFaqs = asyncHandler(async (req, res) => {
+  const data = await supportService.listAllFaqs(req.query);
+  return paginatedResponse(res, 'FAQs fetched successfully', data.items, data);
+});
+
+export const adminGetFaq = asyncHandler(async (req, res) => {
+  return successResponse(res, 'FAQ fetched successfully', await supportService.getFaq(req.params.faqId));
+});
+
+export const adminCreateFaq = asyncHandler(async (req, res) => {
+  return successResponse(res, 'FAQ created', await supportService.createFaq(req.body), HTTP_STATUS.CREATED);
+});
+
+export const adminUpdateFaq = asyncHandler(async (req, res) => {
+  return successResponse(res, 'FAQ updated', await supportService.updateFaq(req.params.faqId, req.body));
+});
+
+export const adminDeleteFaq = asyncHandler(async (req, res) => {
+  return successResponse(res, 'FAQ deleted', await supportService.deleteFaq(req.params.faqId));
+});
+
 export const createTicket = asyncHandler(async (req, res) => {
   return successResponse(res, 'Ticket created', await supportService.createTicket(req.user.id, req.body), HTTP_STATUS.CREATED);
 });

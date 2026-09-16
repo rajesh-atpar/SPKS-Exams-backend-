@@ -6,7 +6,7 @@ import { omit } from '../utils/case.js';
 import { conflict, notFound } from '../utils/errors.js';
 import fileService from './file.service.js';
 
-const publicUser = (user) => omit(user, ['passwordHash']);
+const publicUser = (user) => omit(user, ['passwordHash', 'password', 'hashedPassword']);
 
 export class UserService {
   async getMe(userId) {
@@ -136,6 +136,11 @@ export class UserService {
       status: USER_STATUS.ACTIVE
     });
     await repos.userSettings.create({ userId: user.id });
+    try {
+      await repos.admins.create({ userId: user.id, role: user.role });
+    } catch {
+      // Live admins table is optional.
+    }
     return publicUser(user);
   }
 
@@ -159,7 +164,7 @@ export class UserService {
   async deleteUser(userId) {
     const user = await repos.users.findById(userId);
     if (!user) throw notFound('User');
-    await repos.users.update(userId, { status: USER_STATUS.DELETED });
+    await repos.users.remove(userId);
     return { message: 'User deleted' };
   }
 

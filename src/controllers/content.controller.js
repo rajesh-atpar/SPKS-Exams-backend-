@@ -84,6 +84,15 @@ export const adminUploadContent = asyncHandler(async (req, res) => {
   return successResponse(res, 'File uploaded successfully', await contentService.upload(req.file), HTTP_STATUS.CREATED);
 });
 
+export const adminListChapters = asyncHandler(async (req, res) => {
+  const data = await contentService.listChapters(req.query.subjectId, req.query, { admin: true });
+  return paginatedResponse(res, 'Chapters fetched successfully', data.items, data);
+});
+
+export const adminGetChapter = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Chapter fetched successfully', await contentService.getChapter(req.params.chapterId, { admin: true }));
+});
+
 export const adminCreateChapter = asyncHandler(async (req, res) => {
   return successResponse(res, 'Chapter created successfully', await contentService.createChapter(req.body), HTTP_STATUS.CREATED);
 });
@@ -94,6 +103,15 @@ export const adminUpdateChapter = asyncHandler(async (req, res) => {
 
 export const adminDeleteChapter = asyncHandler(async (req, res) => {
   return successResponse(res, 'Chapter deleted', await contentService.deleteChapter(req.params.chapterId));
+});
+
+export const adminListLessons = asyncHandler(async (req, res) => {
+  const data = await contentService.listLessons(req.query.chapterId, req.query, { admin: true });
+  return paginatedResponse(res, 'Lessons fetched successfully', data.items, data);
+});
+
+export const adminGetLesson = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Lesson fetched successfully', await contentService.getLesson(req.params.lessonId, { admin: true }));
 });
 
 export const adminCreateLesson = asyncHandler(async (req, res) => {

@@ -2,9 +2,9 @@ import logger from '../config/logger.js';
 import { ERROR_CODES, HTTP_STATUS } from '../config/constants.js';
 
 export const errorHandler = (err, req, res, next) => {
-  logger.error('Error:', {
-    message: err.message,
+  logger.error(err.message, {
     stack: err.stack,
+    cause: err.cause?.cause?.message || err.cause?.message,
     path: req.path,
     method: req.method,
     user: req.user?.id

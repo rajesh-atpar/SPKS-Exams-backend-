@@ -107,6 +107,10 @@ export const adminListGroups = asyncHandler(async (req, res) => {
   return paginatedResponse(res, 'Groups fetched successfully', data.items, data);
 });
 
+export const adminGetGroup = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Group fetched successfully', await catalogService.getGroup(req.params.groupId));
+});
+
 export const adminCreateGroup = asyncHandler(async (req, res) => {
   return successResponse(res, 'Group created successfully', await catalogService.createGroup(req.body), HTTP_STATUS.CREATED);
 });
@@ -119,6 +123,15 @@ export const adminDeleteGroup = asyncHandler(async (req, res) => {
   return successResponse(res, 'Group deleted', await catalogService.deleteGroup(req.params.groupId));
 });
 
+export const adminListClasses = asyncHandler(async (req, res) => {
+  const data = await catalogService.listClasses(req.query, { groupId: req.query.groupId });
+  return paginatedResponse(res, 'Classes fetched successfully', data.items, data);
+});
+
+export const adminGetClass = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Class fetched successfully', await catalogService.getClass(req.params.classId));
+});
+
 export const adminCreateClass = asyncHandler(async (req, res) => {
   return successResponse(res, 'Class created successfully', await catalogService.createClass(req.body), HTTP_STATUS.CREATED);
 });
@@ -129,6 +142,19 @@ export const adminUpdateClass = asyncHandler(async (req, res) => {
 
 export const adminDeleteClass = asyncHandler(async (req, res) => {
   return successResponse(res, 'Class deleted', await catalogService.deleteClass(req.params.classId));
+});
+
+export const adminListSubjects = asyncHandler(async (req, res) => {
+  const data = await catalogService.listSubjects(req.query, {
+    courseId: req.query.courseId,
+    groupId: req.query.groupId,
+    classId: req.query.classId
+  });
+  return paginatedResponse(res, 'Subjects fetched successfully', data.items, data);
+});
+
+export const adminGetSubject = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Subject fetched successfully', await catalogService.getSubject(req.params.subjectId));
 });
 
 export const adminCreateSubject = asyncHandler(async (req, res) => {
