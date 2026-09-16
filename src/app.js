@@ -51,10 +51,27 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+const toOrigin = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return raw.replace(/\/+$/, '');
+  }
+};
+
 const allowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'https://spks-exams-admin.vercel.app',
   process.env.FRONTEND_ADMIN_URL,
-  process.env.FRONTEND_STUDENT_URL
-].filter(Boolean);
+  process.env.FRONTEND_STUDENT_URL,
+  process.env.CORS_ALLOWED_ORIGINS
+]
+  .flatMap((value) => String(value || '').split(','))
+  .map(toOrigin)
+  .filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -65,7 +82,9 @@ app.use(cors({
     }
     return callback(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(compression());
