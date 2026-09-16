@@ -38,7 +38,9 @@ const logger = winston.createLogger({
   exitOnError: false
 });
 
-if (process.env.LOG_TO_FILE !== 'false') {
+const logToFile = process.env.LOG_TO_FILE !== 'false' && !process.env.VERCEL;
+
+if (logToFile) {
   logger.add(new DailyRotateFile({
     filename: path.join(logDir, 'application-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',
@@ -65,7 +67,7 @@ export const auditLogger = winston.createLogger({
   exitOnError: false
 });
 
-if (process.env.LOG_TO_FILE !== 'false') {
+if (logToFile) {
   auditLogger.add(new DailyRotateFile({
     filename: path.join(logDir, 'audit-%DATE%.log'),
     datePattern: 'YYYY-MM-DD',

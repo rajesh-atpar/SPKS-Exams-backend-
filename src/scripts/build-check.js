@@ -2,10 +2,14 @@ import { readdirSync, statSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import app from '../app.js';
-import adminRoutes from '../routes/admin.routes.js';
-import adminAuthRoutes from '../routes/adminAuth.routes.js';
-import adminUserRoutes from '../routes/adminUser.routes.js';
+
+// Vercel/CI run this without runtime secrets. Placeholders let the app
+// load so we can syntax-check and verify routes; real env is required at start.
+process.env.LOG_TO_FILE ||= 'false';
+process.env.SUPABASE_URL ||= 'https://placeholder.supabase.co';
+process.env.SUPABASE_ANON_KEY ||= 'build-placeholder-anon-key';
+process.env.SUPABASE_SERVICE_ROLE_KEY ||= 'build-placeholder-service-role-key';
+process.env.JWT_SECRET ||= 'build-placeholder-jwt-secret';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -28,6 +32,18 @@ for (const file of files) {
     throw new Error(`Syntax error in ${file}\n${result.stderr || result.stdout}`);
   }
 }
+
+const [
+  { default: app },
+  { default: adminRoutes },
+  { default: adminAuthRoutes },
+  { default: adminUserRoutes }
+] = await Promise.all([
+  import('../app.js'),
+  import('../routes/admin.routes.js'),
+  import('../routes/adminAuth.routes.js'),
+  import('../routes/adminUser.routes.js')
+]);
 
 if (!app) {
   throw new Error('App failed to load');

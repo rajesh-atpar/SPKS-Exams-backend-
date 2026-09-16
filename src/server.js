@@ -1,4 +1,7 @@
+import { assertProductionEnv } from './config/env.js';
 import app from './app.js';
+
+assertProductionEnv();
 
 const PORT = process.env.PORT || 4000;
 
