@@ -4,10 +4,15 @@ import { ERROR_CODES, HTTP_STATUS, STAFF_ROLES, USER_STATUS } from '../config/co
 import { omit } from '../utils/case.js';
 import logger from '../config/logger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET is required');
-}
+const jwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    const error = new Error('JWT_SECRET is required');
+    error.statusCode = HTTP_STATUS.SERVICE_UNAVAILABLE;
+    throw error;
+  }
+  return secret;
+};
 
 const publicUser = (user) => omit(user, ['passwordHash', 'password', 'hashedPassword']);
 
@@ -23,7 +28,7 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
+    const decoded = jwt.verify(authHeader.slice(7), jwtSecret());
     const user = await repos.users.findById(decoded.userId);
 
     if (!user || user.status === USER_STATUS.DELETED) {
@@ -64,7 +69,7 @@ export const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
+    const decoded = jwt.verify(authHeader.slice(7), jwtSecret());
     const user = await repos.users.findById(decoded.userId);
     req.user = user && user.status === USER_STATUS.ACTIVE ? publicUser(user) : null;
     next();

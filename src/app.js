@@ -6,6 +6,7 @@ import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
 import { swaggerSetup } from './config/swagger.js';
+import { assertProductionEnv } from './config/env.js';
 import logger from './config/logger.js';
 import { generalRateLimiter } from './middleware/rateLimit.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -99,6 +100,18 @@ app.get('/api/health', (_req, res) => {
       environment: process.env.NODE_ENV || 'development'
     }
   });
+});
+
+app.use((req, res, next) => {
+  try {
+    assertProductionEnv();
+    next();
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: error.message
+    });
+  }
 });
 
 app.use('/api/auth', authRoutes);

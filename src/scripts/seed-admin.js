@@ -1,5 +1,5 @@
 import '../config/env.js';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { repos } from '../repositories/repos.js';
 import { USER_ROLES, USER_STATUS } from '../config/constants.js';
 

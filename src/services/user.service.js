@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { repos } from '../repositories/repos.js';
 import { USER_ROLES, USER_STATUS } from '../config/constants.js';
 import { getPaginationParams } from '../utils/pagination.js';

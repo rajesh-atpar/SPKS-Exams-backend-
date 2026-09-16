@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { repos } from '../repositories/repos.js';
 import { JWT_CONFIG, STAFF_ROLES, USER_ROLES, USER_STATUS } from '../config/constants.js';
