@@ -22,6 +22,7 @@ paymentRoutes.post('/verify', platformController.verifyPayment);
 
 export const helpRoutes = Router();
 helpRoutes.get('/faqs', platformController.listFaqs);
+helpRoutes.get('/contact', platformController.getContact);
 
 export const supportRoutes = Router();
 supportRoutes.use(authenticate, authorizeAppUser);

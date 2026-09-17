@@ -18,6 +18,7 @@ router.patch('/me/settings', userController.updateSettings);
 router.delete('/me/account', userController.deleteAccount);
 router.get('/me/bookmarks', userController.myBookmarks);
 router.get('/me/progress', userController.myProgress);
+router.get('/me/continue-learning', userController.myContinueLearning);
 router.get('/me/course-progress', userController.myCourseProgress);
 router.get('/me/activity', userController.myActivity);
 router.get('/me/streak', userController.myStreak);

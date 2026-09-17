@@ -1,6 +1,8 @@
 import {
   CoursesRepository,
   DEFAULT_FAQS,
+  DEFAULT_GROUPS,
+  DEFAULT_HELP_CONTACT_SETTING,
   DEFAULT_LEGAL,
   DEFAULT_PLANS,
   MemoryFallbackRepository,
@@ -14,7 +16,7 @@ export const repos = {
   userSettings: new MemoryFallbackRepository('user_settings'),
   deviceTokens: new MemoryFallbackRepository('device_tokens'),
   courses: new CoursesRepository(),
-  groups: new MemoryFallbackRepository('groups'),
+  groups: new MemoryFallbackRepository('groups', DEFAULT_GROUPS),
   classes: new MemoryFallbackRepository('classes'),
   subjects: new MemoryFallbackRepository('subjects'),
   chapters: new MemoryFallbackRepository('chapters'),
@@ -38,6 +40,7 @@ export const repos = {
   tickets: new MemoryFallbackRepository('support_tickets'),
   messages: new MemoryFallbackRepository('support_messages'),
   legal: new MemoryFallbackRepository('legal_documents', DEFAULT_LEGAL),
+  platformSettings: new MemoryFallbackRepository('platform_settings', [DEFAULT_HELP_CONTACT_SETTING]),
   notifications: new MemoryFallbackRepository('notifications'),
   students: new MemoryFallbackRepository('students'),
   admins: new MemoryFallbackRepository('admins')

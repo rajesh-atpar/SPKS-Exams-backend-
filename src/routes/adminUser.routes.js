@@ -12,6 +12,11 @@ router.use(authenticate, authorizeStaff);
 
 router.get('/', userController.adminListUsers);
 router.post('/', authorizeAdmin, registerValidator, validate, userController.adminCreateUser);
+router.get('/:userId/progress', uuidParam('userId'), validate, userController.adminUserProgress);
+router.get('/:userId/continue-learning', uuidParam('userId'), validate, userController.adminUserContinueLearning);
+router.get('/:userId/activity', uuidParam('userId'), validate, userController.adminUserActivity);
+router.get('/:userId/course-progress', uuidParam('userId'), validate, userController.adminUserCourseProgress);
+router.get('/:userId/test-history', uuidParam('userId'), validate, userController.adminUserTestHistory);
 router.get('/:userId', uuidParam('userId'), validate, userController.adminGetUser);
 router.patch('/:userId', uuidParam('userId'), userUpdateValidator, validate, userController.adminUpdateUser);
 router.patch('/:userId/status', authorizeAdmin, uuidParam('userId'), statusValidator, validate, userController.adminUpdateStatus);

@@ -6,25 +6,25 @@ import { paginatedResponse, successResponse } from '../utils/response.js';
 import { badRequest } from '../utils/errors.js';
 
 export const listContent = asyncHandler(async (req, res) => {
-  const data = await contentService.list(req.query);
+  const data = await contentService.list(req.query, {}, { user: req.user });
   return paginatedResponse(res, 'Content fetched successfully', data.items, data);
 });
 
 export const getContent = asyncHandler(async (req, res) => {
-  return successResponse(res, 'Content fetched successfully', await contentService.get(req.params.contentId));
+  return successResponse(res, 'Content fetched successfully', await contentService.get(req.params.contentId, { user: req.user }));
 });
 
 export const downloadContent = asyncHandler(async (req, res) => {
-  return successResponse(res, 'Download ready', await contentService.download(req.params.contentId));
+  return successResponse(res, 'Download ready', await contentService.download(req.params.contentId, req.user));
 });
 
 export const subjectContent = asyncHandler(async (req, res) => {
-  const data = await contentService.list(req.query, { subjectId: req.params.subjectId });
+  const data = await contentService.list(req.query, { subjectId: req.params.subjectId }, { user: req.user });
   return paginatedResponse(res, 'Content fetched successfully', data.items, data);
 });
 
 export const chapterContent = asyncHandler(async (req, res) => {
-  const data = await contentService.list(req.query, { chapterId: req.params.chapterId });
+  const data = await contentService.list(req.query, { chapterId: req.params.chapterId }, { user: req.user });
   return paginatedResponse(res, 'Content fetched successfully', data.items, data);
 });
 
@@ -56,6 +56,10 @@ export const getLesson = asyncHandler(async (req, res) => {
 
 export const completeLesson = asyncHandler(async (req, res) => {
   return successResponse(res, 'Lesson completed', await contentService.completeLesson(req.user.id, req.params.lessonId));
+});
+
+export const accessLesson = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Lesson progress saved', await contentService.accessLesson(req.user.id, req.params.lessonId));
 });
 
 export const adminListContent = asyncHandler(async (req, res) => {

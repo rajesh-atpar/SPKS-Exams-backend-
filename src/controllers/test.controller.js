@@ -5,12 +5,16 @@ import { paginatedResponse, successResponse } from '../utils/response.js';
 import { badRequest } from '../utils/errors.js';
 
 export const listTests = asyncHandler(async (req, res) => {
-  const data = await testService.listTests(req.query);
+  const data = await testService.listTests(req.query, { user: req.user });
   return paginatedResponse(res, 'Tests fetched successfully', data.items, data);
 });
 
 export const getTest = asyncHandler(async (req, res) => {
-  return successResponse(res, 'Test fetched successfully', await testService.getTest(req.params.testId));
+  return successResponse(
+    res,
+    'Test fetched successfully',
+    await testService.getTest(req.params.testId, { user: req.user, includeQuestions: true })
+  );
 });
 
 export const startTest = asyncHandler(async (req, res) => {
@@ -27,7 +31,8 @@ export const saveAnswers = asyncHandler(async (req, res) => {
 });
 
 export const submitAttempt = asyncHandler(async (req, res) => {
-  return successResponse(res, 'Test submitted', await testService.submitAttempt(req.user.id, req.params.attemptId));
+  const answers = Array.isArray(req.body?.answers) ? req.body.answers : [];
+  return successResponse(res, 'Test submitted', await testService.submitAttempt(req.user.id, req.params.attemptId, answers));
 });
 
 export const getResult = asyncHandler(async (req, res) => {
@@ -70,4 +75,18 @@ export const adminDeleteQuestion = asyncHandler(async (req, res) => {
 export const adminUploadQuestionImage = asyncHandler(async (req, res) => {
   if (!req.file) throw badRequest('Question image is required');
   return successResponse(res, 'Question image uploaded', await testService.uploadQuestionImage(req.file), HTTP_STATUS.CREATED);
+});
+
+export const adminListResults = asyncHandler(async (req, res) => {
+  const data = await testService.listResults(req.query);
+  return paginatedResponse(res, 'Results fetched successfully', data.items, data);
+});
+
+export const adminTestResults = asyncHandler(async (req, res) => {
+  const data = await testService.listResults(req.query, { testId: req.params.testId });
+  return paginatedResponse(res, 'Results fetched successfully', data.items, data);
+});
+
+export const adminGetResult = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Result fetched successfully', await testService.getResult(req.user.id, req.params.attemptId, { admin: true }));
 });

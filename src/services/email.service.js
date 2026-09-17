@@ -78,9 +78,12 @@ export class EmailService {
     return this.sendEmail(studentEmail, subject, html);
   }
 
-  async sendPasswordResetEmail(email, resetToken) {
+  async sendPasswordResetEmail(email, resetToken, { staff = false } = {}) {
     const subject = 'Password Reset Request';
-    const resetLink = `${process.env.FRONTEND_STUDENT_URL}/reset-password?token=${resetToken}`;
+    const baseUrl = staff
+      ? (process.env.FRONTEND_ADMIN_URL || process.env.FRONTEND_STUDENT_URL)
+      : (process.env.FRONTEND_STUDENT_URL || process.env.FRONTEND_ADMIN_URL);
+    const resetLink = `${baseUrl || 'https://spksexams.com'}/reset-password?token=${resetToken}`;
 
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

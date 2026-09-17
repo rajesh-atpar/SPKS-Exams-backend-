@@ -6,16 +6,16 @@ import { paginatedResponse, successResponse } from '../utils/response.js';
 import { badRequest } from '../utils/errors.js';
 
 export const listVideos = asyncHandler(async (req, res) => {
-  const data = await mediaService.listVideos(req.query);
+  const data = await mediaService.listVideos(req.query, { user: req.user });
   return paginatedResponse(res, 'Videos fetched successfully', data.items, data);
 });
 
 export const getVideo = asyncHandler(async (req, res) => {
-  return successResponse(res, 'Video fetched successfully', await mediaService.getVideo(req.params.videoId));
+  return successResponse(res, 'Video fetched successfully', await mediaService.getVideo(req.params.videoId, { user: req.user }));
 });
 
 export const viewVideo = asyncHandler(async (req, res) => {
-  return successResponse(res, 'View recorded', await mediaService.viewVideo(req.params.videoId));
+  return successResponse(res, 'View recorded', await mediaService.viewVideo(req.params.videoId, req.user));
 });
 
 export const bookmarkVideo = asyncHandler(async (req, res) => {

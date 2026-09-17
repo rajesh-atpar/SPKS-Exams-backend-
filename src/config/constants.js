@@ -90,7 +90,20 @@ export const ERROR_CODES = {
   CONFLICT_ERROR: 'CONFLICT_ERROR',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
-  PAYMENT_ERROR: 'PAYMENT_ERROR'
+  PAYMENT_ERROR: 'PAYMENT_ERROR',
+  PREMIUM_REQUIRED: 'PREMIUM_REQUIRED'
+};
+
+export const PLATFORM_SETTING_KEYS = {
+  HELP_CONTACT: 'help_contact'
+};
+
+export const DEFAULT_HELP_CONTACT = {
+  phone: '+91 00000 00000',
+  whatsapp: '+91 00000 00000',
+  hours: 'Mon–Sat, 9:00 AM – 6:00 PM IST',
+  email: 'support@spksexams.com',
+  address: ''
 };
 
 export const PAGINATION = {

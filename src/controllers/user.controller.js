@@ -53,6 +53,10 @@ export const myProgress = asyncHandler(async (req, res) => {
   return successResponse(res, 'Progress fetched successfully', await progressService.getProgress(req.user.id));
 });
 
+export const myContinueLearning = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Continue learning fetched successfully', await progressService.getContinueLearning(req.user.id));
+});
+
 export const myCourseProgress = asyncHandler(async (req, res) => {
   return successResponse(res, 'Course progress fetched successfully', await progressService.getCourseProgress(req.user.id));
 });
@@ -83,6 +87,11 @@ export const myTestHistory = asyncHandler(async (req, res) => {
   return paginatedResponse(res, 'Test history fetched successfully', data.items, data);
 });
 
+export const adminUserTestHistory = asyncHandler(async (req, res) => {
+  const data = await testService.testHistory(req.params.userId, req.query);
+  return paginatedResponse(res, 'Test history fetched successfully', data.items, data);
+});
+
 export const adminListUsers = asyncHandler(async (req, res) => {
   const data = await userService.listUsers(req.query);
   return paginatedResponse(res, 'Users fetched successfully', data.items, data);
@@ -90,6 +99,22 @@ export const adminListUsers = asyncHandler(async (req, res) => {
 
 export const adminGetUser = asyncHandler(async (req, res) => {
   return successResponse(res, 'User fetched successfully', await userService.getUser(req.params.userId));
+});
+
+export const adminUserProgress = asyncHandler(async (req, res) => {
+  return successResponse(res, 'User progress fetched successfully', await progressService.getProgress(req.params.userId));
+});
+
+export const adminUserContinueLearning = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Continue learning fetched successfully', await progressService.getContinueLearning(req.params.userId));
+});
+
+export const adminUserActivity = asyncHandler(async (req, res) => {
+  return successResponse(res, 'User activity fetched successfully', await progressService.getActivity(req.params.userId, req.query));
+});
+
+export const adminUserCourseProgress = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Course progress fetched successfully', await progressService.getCourseProgress(req.params.userId));
 });
 
 export const adminCreateUser = asyncHandler(async (req, res) => {

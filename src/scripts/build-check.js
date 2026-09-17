@@ -57,7 +57,7 @@ const routeKeys = (router) => router.stack
 
 const expected = {
   adminAuth: ['POST /login', 'GET /me'],
-  adminUsers: ['GET /', 'GET /:userId'],
+  adminUsers: ['GET /', 'GET /:userId', 'GET /:userId/test-history'],
   admin: [
     'GET /courses',
     'GET /groups',
@@ -67,6 +67,8 @@ const expected = {
     'GET /chapters/:chapterId',
     'GET /lessons/:lessonId',
     'POST /questions/upload',
+    'GET /results',
+    'GET /tests/:testId/results',
     'GET /faqs',
     'GET /analytics/overview'
   ]

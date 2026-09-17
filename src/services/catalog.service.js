@@ -1,5 +1,5 @@
 import { repos } from '../repositories/repos.js';
-import { DEFAULT_COURSES } from '../repositories/live.repository.js';
+import { DEFAULT_COURSES, DEFAULT_GROUPS } from '../repositories/live.repository.js';
 import { getPaginationParams } from '../utils/pagination.js';
 import { slugify } from '../utils/string.js';
 import { notFound } from '../utils/errors.js';
@@ -118,7 +118,17 @@ export class CatalogService {
   }
 
   listGroups(query, filters = {}) {
-    return list(repos.groups, query, filters);
+    return list(repos.groups, query, filters).then((result) => {
+      if (result.items.length) return result;
+      const course = DEFAULT_COURSES.find((item) => item.id === filters.courseId || item.slug === filters.courseId);
+      if (filters.courseId && !course) return result;
+      const items = DEFAULT_GROUPS.filter((group) => {
+        if (filters.courseId && group.courseId !== (course?.id || filters.courseId)) return false;
+        if (filters.isActive !== undefined && group.isActive !== filters.isActive) return false;
+        return true;
+      });
+      return { ...result, items, total: items.length };
+    });
   }
 
   async getGroup(groupId) {

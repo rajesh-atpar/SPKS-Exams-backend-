@@ -1,5 +1,6 @@
 import { repos } from '../repositories/repos.js';
-import { DEFAULT_FAQS } from '../repositories/live.repository.js';
+import { DEFAULT_FAQS, DEFAULT_HELP_CONTACT_SETTING } from '../repositories/live.repository.js';
+import { DEFAULT_HELP_CONTACT, PLATFORM_SETTING_KEYS } from '../config/constants.js';
 import { getPaginationParams } from '../utils/pagination.js';
 import { forbidden, notFound } from '../utils/errors.js';
 
@@ -116,6 +117,31 @@ export class SupportService {
     const ticket = await repos.tickets.findById(ticketId);
     if (!ticket) throw notFound('Ticket');
     return repos.tickets.update(ticketId, { status });
+  }
+
+  async getContact() {
+    try {
+      const setting = await repos.platformSettings.findOne({ key: PLATFORM_SETTING_KEYS.HELP_CONTACT });
+      const value = setting?.value || DEFAULT_HELP_CONTACT_SETTING.value || DEFAULT_HELP_CONTACT;
+      return { ...DEFAULT_HELP_CONTACT, ...value };
+    } catch {
+      return DEFAULT_HELP_CONTACT;
+    }
+  }
+
+  async updateContact(payload, userId) {
+    const value = { ...(await this.getContact()), ...payload };
+    const existing = await repos.platformSettings.findOne({ key: PLATFORM_SETTING_KEYS.HELP_CONTACT });
+    if (existing) {
+      const updated = await repos.platformSettings.update(existing.id, { value, updatedBy: userId });
+      return { ...DEFAULT_HELP_CONTACT, ...(updated.value || value) };
+    }
+    const created = await repos.platformSettings.create({
+      key: PLATFORM_SETTING_KEYS.HELP_CONTACT,
+      value,
+      updatedBy: userId
+    });
+    return { ...DEFAULT_HELP_CONTACT, ...(created.value || value) };
   }
 }
 

@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { repos } from '../repositories/repos.js';
 import { JWT_CONFIG, STAFF_ROLES, USER_ROLES, USER_STATUS } from '../config/constants.js';
 import { omit } from '../utils/case.js';
-import { conflict, forbidden, notFound, unauthorized } from '../utils/errors.js';
+import { badRequest, conflict, forbidden, notFound, unauthorized } from '../utils/errors.js';
 import logger from '../config/logger.js';
 import emailService from './email.service.js';
 
@@ -192,7 +192,7 @@ export class AuthService {
     });
 
     try {
-      await emailService.sendPasswordResetEmail(user.email, token);
+      await emailService.sendPasswordResetEmail(user.email, token, { staff: STAFF_ROLES.includes(user.role) });
     } catch (error) {
       logger.warn(`Password reset email not sent: ${error.message}`);
     }
@@ -215,6 +215,31 @@ export class AuthService {
     });
     await repos.passwordResets.update(record.id, { usedAt: new Date().toISOString() });
     return { message: 'Password reset successful' };
+  }
+
+  async changePassword(userId, currentPassword, newPassword) {
+    const user = await repos.users.findById(userId);
+    if (!user) throw notFound('User');
+
+    const passwordHash = user.passwordHash;
+    if (!passwordHash) throw unauthorized('Current password is incorrect');
+
+    let valid = false;
+    try {
+      valid = await bcrypt.compare(currentPassword, passwordHash);
+    } catch {
+      valid = false;
+    }
+    if (!valid) throw unauthorized('Current password is incorrect');
+
+    if (currentPassword === newPassword) {
+      throw badRequest('New password must be different from the current password');
+    }
+
+    await repos.users.update(userId, {
+      passwordHash: await bcrypt.hash(newPassword, 10)
+    });
+    return { message: 'Password changed successfully' };
   }
 }
 

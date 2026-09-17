@@ -2,15 +2,18 @@ import { repos } from '../repositories/repos.js';
 import { getPaginationParams } from '../utils/pagination.js';
 import { notFound } from '../utils/errors.js';
 import fileService from './file.service.js';
+import accessService from './access.service.js';
+import progressService from './progress.service.js';
 
 const published = (admin) => (admin ? {} : { isPublished: true });
 
 export class ContentService {
-  async list(query, extraFilters = {}, { admin = false } = {}) {
+  async list(query, extraFilters = {}, { admin = false, user = null } = {}) {
     const { page, limit } = getPaginationParams(query);
+    const { user: _user, ...safeFilters } = extraFilters;
     const filters = {
       ...published(admin),
-      ...extraFilters
+      ...safeFilters
     };
 
     if (query.courseId) filters.courseId = query.courseId;
@@ -28,13 +31,20 @@ export class ContentService {
       search: query.search,
       searchFields: ['title', 'description']
     });
-    return { items, total, page, limit };
+
+    return {
+      items: admin ? items : await accessService.applyList(items, user),
+      total,
+      page,
+      limit
+    };
   }
 
-  async get(contentId, { admin = false } = {}) {
+  async get(contentId, { admin = false, user = null } = {}) {
     const item = await repos.content.findById(contentId);
     if (!item || (!admin && !item.isPublished)) throw notFound('Content');
-    return item;
+    if (admin) return item;
+    return accessService.applyItem(item, user);
   }
 
   create(payload) {
@@ -56,8 +66,13 @@ export class ContentService {
     return fileService.uploadFile(file, folder);
   }
 
-  async download(contentId) {
-    const item = await this.get(contentId);
+  async download(contentId, user) {
+    const item = await repos.content.findById(contentId);
+    if (!item || !item.isPublished) throw notFound('Content');
+    await accessService.assertUnlocked(user, item, 'This file');
+    if (user?.id) {
+      await progressService.recordContentAccess(user.id, item);
+    }
     await repos.content.increment(contentId, 'downloadCount');
     return { fileUrl: item.fileUrl, title: item.title };
   }
@@ -139,12 +154,14 @@ export class ContentService {
     if (!existing) {
       await repos.lessonCompletions.create({ userId, lessonId });
     }
-    await repos.activity.create({
-      userId,
-      activityType: 'lesson_completed',
-      metadata: { lessonId, chapterId: lesson.chapterId }
-    });
-    return { lessonId, completed: true };
+    const context = await progressService.recordLessonAccess(userId, lesson, { completed: true });
+    return { lessonId, completed: true, courseId: context.courseId || null };
+  }
+
+  async accessLesson(userId, lessonId) {
+    const lesson = await this.getLesson(lessonId);
+    const context = await progressService.recordLessonAccess(userId, lesson);
+    return { lessonId, recorded: true, courseId: context.courseId || null };
   }
 }
 

@@ -29,32 +29,32 @@ export const courseOverview = asyncHandler(async (req, res) => {
 });
 
 export const courseContent = asyncHandler(async (req, res) => {
-  const data = await contentService.list(req.query, { courseId: req.params.courseId });
+  const data = await contentService.list(req.query, { courseId: req.params.courseId }, { user: req.user });
   return paginatedResponse(res, 'Content fetched successfully', data.items, data);
 });
 
 export const courseNotes = asyncHandler(async (req, res) => {
-  const data = await contentService.list(req.query, { courseId: req.params.courseId, contentType: 'note' });
+  const data = await contentService.list(req.query, { courseId: req.params.courseId, contentType: 'note' }, { user: req.user });
   return paginatedResponse(res, 'Notes fetched successfully', data.items, data);
 });
 
 export const courseBooks = asyncHandler(async (req, res) => {
-  const data = await contentService.list(req.query, { courseId: req.params.courseId, contentType: 'book' });
+  const data = await contentService.list(req.query, { courseId: req.params.courseId, contentType: 'book' }, { user: req.user });
   return paginatedResponse(res, 'Books fetched successfully', data.items, data);
 });
 
 export const courseOutsideSources = asyncHandler(async (req, res) => {
-  const data = await contentService.list(req.query, { courseId: req.params.courseId, contentType: 'outside-source' });
+  const data = await contentService.list(req.query, { courseId: req.params.courseId, contentType: 'outside-source' }, { user: req.user });
   return paginatedResponse(res, 'Outside sources fetched successfully', data.items, data);
 });
 
 export const courseVideos = asyncHandler(async (req, res) => {
-  const data = await mediaService.listVideos({ ...req.query, courseId: req.params.courseId });
+  const data = await mediaService.listVideos({ ...req.query, courseId: req.params.courseId }, { user: req.user });
   return paginatedResponse(res, 'Videos fetched successfully', data.items, data);
 });
 
 export const courseTests = asyncHandler(async (req, res) => {
-  const data = await testService.listTests({ ...req.query, courseId: req.params.courseId, groupId: req.query.groupId });
+  const data = await testService.listTests({ ...req.query, courseId: req.params.courseId, groupId: req.query.groupId }, { user: req.user });
   return paginatedResponse(res, 'Tests fetched successfully', data.items, data);
 });
 
@@ -70,6 +70,36 @@ export const groupSubjects = asyncHandler(async (req, res) => {
 export const groupClasses = asyncHandler(async (req, res) => {
   const data = await catalogService.listClasses(req.query, { groupId: req.params.groupId, isActive: true });
   return paginatedResponse(res, 'Classes fetched successfully', data.items, data);
+});
+
+export const groupContent = asyncHandler(async (req, res) => {
+  const data = await contentService.list(req.query, { groupId: req.params.groupId }, { user: req.user });
+  return paginatedResponse(res, 'Content fetched successfully', data.items, data);
+});
+
+export const groupBooks = asyncHandler(async (req, res) => {
+  const data = await contentService.list(req.query, { groupId: req.params.groupId, contentType: 'book' }, { user: req.user });
+  return paginatedResponse(res, 'Books fetched successfully', data.items, data);
+});
+
+export const groupNotes = asyncHandler(async (req, res) => {
+  const data = await contentService.list(req.query, { groupId: req.params.groupId, contentType: 'note' }, { user: req.user });
+  return paginatedResponse(res, 'Notes fetched successfully', data.items, data);
+});
+
+export const groupOutsideSources = asyncHandler(async (req, res) => {
+  const data = await contentService.list(req.query, { groupId: req.params.groupId, contentType: 'outside-source' }, { user: req.user });
+  return paginatedResponse(res, 'Outside sources fetched successfully', data.items, data);
+});
+
+export const groupVideos = asyncHandler(async (req, res) => {
+  const data = await mediaService.listVideos({ ...req.query, groupId: req.params.groupId }, { user: req.user });
+  return paginatedResponse(res, 'Videos fetched successfully', data.items, data);
+});
+
+export const groupTests = asyncHandler(async (req, res) => {
+  const data = await testService.listTests({ ...req.query, groupId: req.params.groupId }, { user: req.user });
+  return paginatedResponse(res, 'Tests fetched successfully', data.items, data);
 });
 
 export const classSubjects = asyncHandler(async (req, res) => {

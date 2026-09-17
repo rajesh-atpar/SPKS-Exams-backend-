@@ -2,12 +2,15 @@ import { repos } from '../repositories/repos.js';
 import { BOOKMARK_TYPES } from '../config/constants.js';
 import { getPaginationParams } from '../utils/pagination.js';
 import { conflict, notFound } from '../utils/errors.js';
+import accessService from './access.service.js';
+import progressService from './progress.service.js';
 
 export class MediaService {
-  async listVideos(query, { admin = false } = {}) {
+  async listVideos(query, { admin = false, user = null } = {}) {
     const { page, limit } = getPaginationParams(query);
     const filters = admin ? {} : { isPublished: true };
     if (query.courseId) filters.courseId = query.courseId;
+    if (query.groupId) filters.groupId = query.groupId;
     if (query.category) filters.category = query.category;
 
     const { items, total } = await repos.videos.findMany({
@@ -17,13 +20,19 @@ export class MediaService {
       search: query.search,
       searchFields: ['title', 'description']
     });
-    return { items, total, page, limit };
+    return {
+      items: admin ? items : await accessService.applyList(items, user),
+      total,
+      page,
+      limit
+    };
   }
 
-  async getVideo(videoId, { admin = false } = {}) {
+  async getVideo(videoId, { admin = false, user = null } = {}) {
     const video = await repos.videos.findById(videoId);
     if (!video || (!admin && !video.isPublished)) throw notFound('Video');
-    return video;
+    if (admin) return video;
+    return accessService.applyItem(video, user);
   }
 
   createVideo(payload) {
@@ -47,8 +56,13 @@ export class MediaService {
     return { message: 'Video deleted' };
   }
 
-  async viewVideo(videoId) {
-    const video = await this.getVideo(videoId);
+  async viewVideo(videoId, user) {
+    const video = await repos.videos.findById(videoId);
+    if (!video || !video.isPublished) throw notFound('Video');
+    await accessService.assertUnlocked(user, video, 'This video');
+    if (user?.id) {
+      await progressService.recordVideoAccess(user.id, video);
+    }
     await repos.videos.increment(videoId, 'viewCount');
     return { videoId: video.id, viewed: true };
   }

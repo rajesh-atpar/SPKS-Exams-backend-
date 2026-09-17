@@ -8,6 +8,7 @@ import {
   chapterUpdateValidator,
   classBodyValidator,
   classUpdateValidator,
+  contactBodyValidator,
   contentBodyValidator,
   contentUpdateValidator,
   courseBodyValidator,
@@ -103,10 +104,13 @@ router.delete('/current-affairs/:articleId', uuidParam('articleId'), validate, m
 
 router.post('/tests', testBodyValidator, validate, testController.adminCreateTest);
 router.get('/tests', testController.adminListTests);
+router.get('/results', testController.adminListResults);
+router.get('/tests/:testId/results', uuidParam('testId'), validate, testController.adminTestResults);
 router.get('/tests/:testId', uuidParam('testId'), validate, testController.adminGetTest);
 router.patch('/tests/:testId', uuidParam('testId'), testUpdateValidator, validate, testController.adminUpdateTest);
 router.delete('/tests/:testId', uuidParam('testId'), validate, testController.adminDeleteTest);
 router.post('/tests/:testId/questions', uuidParam('testId'), questionBodyValidator, validate, testController.adminAddQuestion);
+router.get('/attempts/:attemptId/result', uuidParam('attemptId'), validate, testController.adminGetResult);
 router.post('/questions/upload', uploadQuestionImage, testController.adminUploadQuestionImage);
 router.patch('/questions/:questionId', uuidParam('questionId'), questionUpdateValidator, validate, testController.adminUpdateQuestion);
 router.delete('/questions/:questionId', uuidParam('questionId'), validate, testController.adminDeleteQuestion);
@@ -130,13 +134,19 @@ router.get('/faqs/:faqId', uuidParam('faqId'), validate, platformController.admi
 router.patch('/faqs/:faqId', uuidParam('faqId'), faqUpdateValidator, validate, platformController.adminUpdateFaq);
 router.delete('/faqs/:faqId', uuidParam('faqId'), validate, platformController.adminDeleteFaq);
 
+router.get('/help/contact', platformController.adminGetContact);
+router.patch('/help/contact', authorizeAdmin, contactBodyValidator, validate, platformController.adminUpdateContact);
+
 router.get('/support/tickets', platformController.adminTickets);
 router.get('/support/tickets/:ticketId', uuidParam('ticketId'), validate, platformController.adminGetTicket);
 router.patch('/support/tickets/:ticketId/status', uuidParam('ticketId'), ticketStatusBodyValidator, validate, platformController.adminUpdateTicketStatus);
 router.post('/support/tickets/:ticketId/reply', uuidParam('ticketId'), ticketReplyValidator, validate, platformController.adminReplyTicket);
 
+router.get('/legal/terms', platformController.getTerms);
 router.patch('/legal/terms', authorizeAdmin, legalBodyValidator, validate, platformController.adminUpdateTerms);
+router.get('/legal/privacy-policy', platformController.getPrivacy);
 router.patch('/legal/privacy-policy', authorizeAdmin, legalBodyValidator, validate, platformController.adminUpdatePrivacy);
+router.get('/legal/refund-policy', platformController.getRefund);
 router.patch('/legal/refund-policy', authorizeAdmin, legalBodyValidator, validate, platformController.adminUpdateRefund);
 
 router.post('/notifications', notificationBodyValidator, validate, platformController.adminCreateNotification);

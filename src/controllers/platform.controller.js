@@ -46,6 +46,18 @@ export const listFaqs = asyncHandler(async (req, res) => {
   return successResponse(res, 'FAQs fetched successfully', await supportService.listFaqs());
 });
 
+export const getContact = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Contact fetched successfully', await supportService.getContact());
+});
+
+export const adminGetContact = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Contact fetched successfully', await supportService.getContact());
+});
+
+export const adminUpdateContact = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Contact updated', await supportService.updateContact(req.body, req.user.id));
+});
+
 export const adminListFaqs = asyncHandler(async (req, res) => {
   const data = await supportService.listAllFaqs(req.query);
   return paginatedResponse(res, 'FAQs fetched successfully', data.items, data);

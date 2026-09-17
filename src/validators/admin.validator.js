@@ -163,6 +163,7 @@ export const videoBodyValidator = [
   body('thumbnailUrl').optional({ values: 'falsy' }).isString(),
   body('category').optional().isString(),
   optionalUuid('courseId'),
+  optionalUuid('groupId'),
   optionalInt('duration'),
   optionalBoolean('isPremium'),
   optionalBoolean('isPublished')
@@ -176,6 +177,7 @@ export const videoUpdateValidator = [
   body('thumbnailUrl').optional({ values: 'falsy' }).isString(),
   body('category').optional().isString(),
   optionalUuid('courseId'),
+  optionalUuid('groupId'),
   optionalInt('duration'),
   optionalBoolean('isPremium'),
   optionalBoolean('isPublished')
@@ -233,9 +235,31 @@ export const testUpdateValidator = [
   optionalBoolean('isPublished')
 ];
 
+const optionText = (item) => {
+  if (item == null) return '';
+  if (typeof item === 'string' || typeof item === 'number') return String(item).trim();
+  if (typeof item === 'object') return String(item.text || item.label || item.option || item.value || item.title || '').trim();
+  return String(item).trim();
+};
+
+const optionsValidator = (required) => {
+  const field = required
+    ? body('options').isArray({ min: 2 }).withMessage('At least two options are required')
+    : body('options').optional({ values: 'undefined' }).isArray({ min: 2 }).withMessage('At least two options are required');
+  return field.custom((options) => {
+    if (options === undefined) return true;
+    if (!Array.isArray(options) || options.length < 2) {
+      throw new Error('At least two options are required');
+    }
+    const texts = options.map(optionText).filter(Boolean);
+    if (texts.length < 2) throw new Error('Each option needs text');
+    return true;
+  });
+};
+
 export const questionBodyValidator = [
   body('question').trim().isLength({ min: 1 }).withMessage('Question is required'),
-  body('options').isArray({ min: 2 }).withMessage('At least two options are required'),
+  optionsValidator(true),
   body('correctAnswer').trim().isLength({ min: 1 }).withMessage('correctAnswer is required'),
   body('questionImage').optional({ values: 'falsy' }).isString(),
   body('explanation').optional().isString(),
@@ -246,7 +270,7 @@ export const questionBodyValidator = [
 
 export const questionUpdateValidator = [
   body('question').optional().trim().isLength({ min: 1 }),
-  body('options').optional().isArray({ min: 2 }).withMessage('At least two options are required'),
+  optionsValidator(false),
   body('correctAnswer').optional().trim().isLength({ min: 1 }),
   body('questionImage').optional({ values: 'falsy' }).isString(),
   body('explanation').optional().isString(),
@@ -310,6 +334,14 @@ export const faqUpdateValidator = [
   body('category').optional().isString(),
   optionalInt('displayOrder'),
   optionalBoolean('isPublished')
+];
+
+export const contactBodyValidator = [
+  body('phone').optional({ values: 'falsy' }).trim().isLength({ max: 40 }),
+  body('whatsapp').optional({ values: 'falsy' }).trim().isLength({ max: 40 }),
+  body('hours').optional({ values: 'falsy' }).trim().isLength({ max: 120 }),
+  body('email').optional({ values: 'falsy' }).isEmail().withMessage('Invalid email').normalizeEmail(),
+  body('address').optional({ values: 'falsy' }).trim().isLength({ max: 500 })
 ];
 
 export const userUpdateValidator = [

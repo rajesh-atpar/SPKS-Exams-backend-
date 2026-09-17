@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS
   faqs,
   notifications,
   device_tokens,
+  platform_settings,
   legal_documents,
   payments,
   subscriptions,
@@ -166,7 +167,8 @@ CREATE TABLE IF NOT EXISTS groups (
   is_active BOOLEAN DEFAULT true,
   display_order INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (course_id, slug)
 );
 
 CREATE TABLE IF NOT EXISTS classes (
@@ -253,6 +255,7 @@ CREATE TABLE IF NOT EXISTS videos (
   thumbnail_url TEXT,
   category VARCHAR(100),
   course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
+  group_id UUID REFERENCES groups(id) ON DELETE SET NULL,
   duration INTEGER DEFAULT 0,
   is_premium BOOLEAN DEFAULT false,
   is_published BOOLEAN DEFAULT false,
@@ -487,6 +490,15 @@ CREATE TABLE IF NOT EXISTS legal_documents (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS platform_settings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  key VARCHAR(100) UNIQUE NOT NULL,
+  value JSONB NOT NULL DEFAULT '{}',
+  updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -518,14 +530,18 @@ CREATE INDEX IF NOT EXISTS idx_lessons_chapter ON lessons(chapter_id);
 CREATE INDEX IF NOT EXISTS idx_content_course ON content(course_id);
 CREATE INDEX IF NOT EXISTS idx_content_type ON content(content_type);
 CREATE INDEX IF NOT EXISTS idx_videos_course ON videos(course_id);
+CREATE INDEX IF NOT EXISTS idx_videos_group ON videos(group_id);
 CREATE INDEX IF NOT EXISTS idx_videos_category ON videos(category);
 CREATE INDEX IF NOT EXISTS idx_current_affairs_date ON current_affairs(date);
 CREATE INDEX IF NOT EXISTS idx_current_affairs_category ON current_affairs(category);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON bookmarks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tests_course ON tests(course_id);
+CREATE INDEX IF NOT EXISTS idx_tests_group ON tests(group_id);
 CREATE INDEX IF NOT EXISTS idx_questions_test ON questions(test_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_user ON test_attempts(user_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_test ON test_attempts(test_id);
+CREATE INDEX IF NOT EXISTS idx_results_user ON test_results(user_id);
+CREATE INDEX IF NOT EXISTS idx_results_test ON test_results(test_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id);
 CREATE INDEX IF NOT EXISTS idx_subscriptions_user ON subscriptions(user_id);
@@ -542,7 +558,7 @@ BEGIN
     'users', 'students', 'admins', 'user_settings', 'courses', 'groups', 'classes', 'subjects',
     'chapters', 'lessons', 'content', 'videos', 'current_affairs', 'tests',
     'questions', 'test_attempts', 'test_answers', 'user_progress', 'plans',
-    'subscriptions', 'payments', 'faqs', 'support_tickets', 'legal_documents'
+    'subscriptions', 'payments', 'faqs', 'support_tickets', 'legal_documents', 'platform_settings'
   ]
   LOOP
     EXECUTE format(
@@ -590,6 +606,7 @@ ALTER TABLE faqs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE support_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE legal_documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE platform_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
@@ -603,11 +620,35 @@ INSERT INTO courses (name, slug, description, icon, is_active, display_order) VA
   ('Current Affairs', 'current-affairs', 'Daily, monthly, and exam-focused current affairs', 'newspaper', true, 4)
 ON CONFLICT (slug) DO NOTHING;
 
+INSERT INTO groups (course_id, name, slug, description, is_active, display_order)
+SELECT c.id, v.name, v.slug, v.description, true, v.display_order
+FROM courses c
+JOIN (
+  VALUES
+    ('tnpsc', 'Group 1', 'group-1', 'TNPSC Group 1 practice tests', 1),
+    ('tnpsc', 'Group 2', 'group-2', 'TNPSC Group 2 practice tests', 2),
+    ('tnpsc', 'Group 3', 'group-3', 'TNPSC Group 3 practice tests', 3),
+    ('tnpsc', 'Group 4', 'group-4', 'TNPSC Group 4 practice tests', 4),
+    ('tnpsc', 'Others', 'others', 'Other TNPSC practice tests', 5),
+    ('rrb', 'Group D', 'group-d', 'RRB Group D practice tests', 1),
+    ('rrb', 'Others', 'others', 'NTPC, JE and ALP practice tests', 2),
+    ('tnusrb', 'SI', 'si', 'TNUSRB Sub-Inspector practice tests', 1),
+    ('tnusrb', 'PC', 'pc', 'TNUSRB Police Constable practice tests', 2)
+) AS v(course_slug, name, slug, description, display_order)
+  ON c.slug = v.course_slug
+WHERE NOT EXISTS (
+  SELECT 1 FROM groups g WHERE g.course_id = c.id AND g.slug = v.slug
+);
+
 INSERT INTO legal_documents (type, title, content) VALUES
   ('terms', 'Terms and Conditions', 'Update these terms from the admin panel.'),
   ('privacy-policy', 'Privacy Policy', 'Update this privacy policy from the admin panel.'),
   ('refund-policy', 'Refund Policy', 'Update this refund policy from the admin panel.')
 ON CONFLICT (type) DO NOTHING;
+
+INSERT INTO platform_settings (key, value) VALUES
+  ('help_contact', '{"phone":"+91 00000 00000","whatsapp":"+91 00000 00000","hours":"Mon–Sat, 9:00 AM – 6:00 PM IST","email":"support@spksexams.com","address":""}')
+ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO faqs (question, answer, category, display_order) VALUES
   ('How do I start a test?', 'Open Tests, choose a paper, and tap Start. Your timer begins immediately.', 'tests', 1),

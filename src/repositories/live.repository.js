@@ -594,8 +594,32 @@ export const DEFAULT_COURSES = [
   }
 ];
 
+export const DEFAULT_HELP_CONTACT_SETTING = {
+  id: 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1',
+  key: 'help_contact',
+  value: {
+    phone: '+91 00000 00000',
+    whatsapp: '+91 00000 00000',
+    hours: 'Mon–Sat, 9:00 AM – 6:00 PM IST',
+    email: 'support@spksexams.com',
+    address: ''
+  }
+};
+
 export const DEFAULT_FAQS = [
   { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', question: 'How do I start a test?', answer: 'Open Tests, choose a paper, and tap Start.', category: 'tests', displayOrder: 1, isPublished: true },
   { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', question: 'How do subscriptions work?', answer: 'Pick a plan and complete payment to unlock premium content.', category: 'payments', displayOrder: 2, isPublished: true },
   { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3', question: 'Can I reset my password?', answer: 'Use Forgot Password on the login screen.', category: 'account', displayOrder: 3, isPublished: true }
+];
+
+export const DEFAULT_GROUPS = [
+  { id: '55555555-5555-4555-8555-555555555501', courseId: '44444444-4444-4444-8444-444444444441', name: 'Group 1', slug: 'group-1', description: 'TNPSC Group 1 practice tests', isActive: true, displayOrder: 1 },
+  { id: '55555555-5555-4555-8555-555555555502', courseId: '44444444-4444-4444-8444-444444444441', name: 'Group 2', slug: 'group-2', description: 'TNPSC Group 2 practice tests', isActive: true, displayOrder: 2 },
+  { id: '55555555-5555-4555-8555-555555555503', courseId: '44444444-4444-4444-8444-444444444441', name: 'Group 3', slug: 'group-3', description: 'TNPSC Group 3 practice tests', isActive: true, displayOrder: 3 },
+  { id: '55555555-5555-4555-8555-555555555504', courseId: '44444444-4444-4444-8444-444444444441', name: 'Group 4', slug: 'group-4', description: 'TNPSC Group 4 practice tests', isActive: true, displayOrder: 4 },
+  { id: '55555555-5555-4555-8555-555555555505', courseId: '44444444-4444-4444-8444-444444444441', name: 'Others', slug: 'others', description: 'Other TNPSC practice tests', isActive: true, displayOrder: 5 },
+  { id: '55555555-5555-4555-8555-555555555511', courseId: '44444444-4444-4444-8444-444444444442', name: 'Group D', slug: 'group-d', description: 'RRB Group D practice tests', isActive: true, displayOrder: 1 },
+  { id: '55555555-5555-4555-8555-555555555512', courseId: '44444444-4444-4444-8444-444444444442', name: 'Others', slug: 'others', description: 'NTPC, JE and ALP practice tests', isActive: true, displayOrder: 2 },
+  { id: '55555555-5555-4555-8555-555555555521', courseId: '44444444-4444-4444-8444-444444444443', name: 'SI', slug: 'si', description: 'TNUSRB Sub-Inspector practice tests', isActive: true, displayOrder: 1 },
+  { id: '55555555-5555-4555-8555-555555555522', courseId: '44444444-4444-4444-8444-444444444443', name: 'PC', slug: 'pc', description: 'TNUSRB Police Constable practice tests', isActive: true, displayOrder: 2 }
 ];

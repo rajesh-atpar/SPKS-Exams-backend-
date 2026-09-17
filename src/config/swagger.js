@@ -140,11 +140,23 @@ const options = {
       '/api/auth/reset-password': {
         post: { tags: ['App Auth'], summary: 'Reset password', requestBody: jsonBody({ type: 'object', required: ['token', 'password'], properties: { token: { type: 'string' }, password: { type: 'string' } } }), responses: ok() }
       },
+      '/api/auth/change-password': {
+        post: { tags: ['App Auth'], security: bearer, summary: 'Change password while logged in', requestBody: jsonBody({ type: 'object', required: ['currentPassword', 'newPassword'], properties: { currentPassword: { type: 'string' }, newPassword: { type: 'string' } } }), responses: ok() }
+      },
       '/api/auth/me': {
         get: { tags: ['App Auth'], security: bearer, summary: 'Current app user', responses: ok() }
       },
       '/api/admin/auth/login': {
         post: { tags: ['Admin Auth'], summary: 'Staff login', requestBody: jsonBody({ $ref: '#/components/schemas/LoginInput' }), responses: ok() }
+      },
+      '/api/admin/auth/forgot-password': {
+        post: { tags: ['Admin Auth'], summary: 'Staff forgot password', requestBody: jsonBody({ type: 'object', required: ['email'], properties: { email: { type: 'string' } } }), responses: ok() }
+      },
+      '/api/admin/auth/reset-password': {
+        post: { tags: ['Admin Auth'], summary: 'Staff reset password', requestBody: jsonBody({ type: 'object', required: ['token', 'password'], properties: { token: { type: 'string' }, password: { type: 'string' } } }), responses: ok() }
+      },
+      '/api/admin/auth/change-password': {
+        post: { tags: ['Admin Auth'], security: bearer, summary: 'Staff change password', requestBody: jsonBody({ type: 'object', required: ['currentPassword', 'newPassword'], properties: { currentPassword: { type: 'string' }, newPassword: { type: 'string' } } }), responses: ok() }
       },
       '/api/admin/auth/logout': {
         post: { tags: ['Admin Auth'], security: bearer, summary: 'Staff logout', responses: ok() }
@@ -174,6 +186,7 @@ const options = {
         get: { tags: ['Users'], security: bearer, summary: 'List bookmarks', responses: ok() }
       },
       '/api/users/me/progress': { get: { tags: ['Users'], security: bearer, summary: 'Progress', responses: ok() } },
+      '/api/users/me/continue-learning': { get: { tags: ['Users'], security: bearer, summary: 'Continue learning', responses: ok() } },
       '/api/users/me/course-progress': { get: { tags: ['Users'], security: bearer, summary: 'Course progress', responses: ok() } },
       '/api/users/me/activity': { get: { tags: ['Users'], security: bearer, summary: 'Activity', responses: ok() } },
       '/api/users/me/streak': { get: { tags: ['Users'], security: bearer, summary: 'Daily streak', responses: ok() } },
@@ -199,6 +212,12 @@ const options = {
       '/api/groups/{groupId}': { get: { tags: ['Catalog'], summary: 'Get group', parameters: [uuidParam('groupId')], responses: ok() } },
       '/api/groups/{groupId}/subjects': { get: { tags: ['Catalog'], summary: 'Group subjects', parameters: [uuidParam('groupId')], responses: ok() } },
       '/api/groups/{groupId}/classes': { get: { tags: ['Catalog'], summary: 'Group classes', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/content': { get: { tags: ['Content'], summary: 'Group content', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/books': { get: { tags: ['Content'], summary: 'Group books', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/notes': { get: { tags: ['Content'], summary: 'Group notes', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/outside-sources': { get: { tags: ['Content'], summary: 'Group outside sources', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/videos': { get: { tags: ['Videos'], summary: 'Group videos', parameters: [uuidParam('groupId')], responses: ok() } },
+      '/api/groups/{groupId}/tests': { get: { tags: ['Tests'], security: bearer, summary: 'Group tests', parameters: [uuidParam('groupId')], responses: ok() } },
       '/api/classes/{classId}/subjects': { get: { tags: ['Catalog'], summary: 'Class subjects', parameters: [uuidParam('classId')], responses: ok() } },
       '/api/subjects/{subjectId}': { get: { tags: ['Catalog'], summary: 'Get subject', parameters: [uuidParam('subjectId')], responses: ok() } },
       '/api/subjects/{subjectId}/content': { get: { tags: ['Content'], summary: 'Subject content', parameters: [uuidParam('subjectId')], responses: ok() } },
@@ -207,6 +226,7 @@ const options = {
       '/api/chapters/{chapterId}/lessons': { get: { tags: ['Catalog'], summary: 'Chapter lessons', parameters: [uuidParam('chapterId')], responses: ok() } },
       '/api/chapters/{chapterId}/content': { get: { tags: ['Content'], summary: 'Chapter content', parameters: [uuidParam('chapterId')], responses: ok() } },
       '/api/lessons/{lessonId}': { get: { tags: ['Catalog'], summary: 'Get lesson', parameters: [uuidParam('lessonId')], responses: ok() } },
+      '/api/lessons/{lessonId}/progress': { post: { tags: ['Catalog'], security: bearer, summary: 'Record lesson access for continue-learning', parameters: [uuidParam('lessonId')], responses: ok() } },
       '/api/lessons/{lessonId}/complete': { post: { tags: ['Catalog'], security: bearer, summary: 'Complete lesson', parameters: [uuidParam('lessonId')], responses: ok() } },
       '/api/content': { get: { tags: ['Content'], summary: 'List content', responses: ok() } },
       '/api/content/{contentId}': { get: { tags: ['Content'], summary: 'Get content', parameters: [uuidParam('contentId')], responses: ok() } },
@@ -229,7 +249,7 @@ const options = {
         post: { tags: ['Current Affairs'], security: bearer, summary: 'Bookmark article', parameters: [uuidParam('articleId')], responses: created },
         delete: { tags: ['Current Affairs'], security: bearer, summary: 'Remove article bookmark', parameters: [uuidParam('articleId')], responses: ok() }
       },
-      '/api/tests': { get: { tags: ['Tests'], security: bearer, summary: 'List tests', responses: ok() } },
+      '/api/tests': { get: { tags: ['Tests'], security: bearer, summary: 'List published tests (filter by courseId, groupId)', parameters: [{ name: 'courseId', in: 'query', schema: { type: 'string', format: 'uuid' } }, { name: 'groupId', in: 'query', schema: { type: 'string', format: 'uuid' } }], responses: ok() } },
       '/api/tests/{testId}': { get: { tags: ['Tests'], security: bearer, summary: 'Get test', parameters: [uuidParam('testId')], responses: ok() } },
       '/api/tests/{testId}/start': { post: { tags: ['Tests'], security: bearer, summary: 'Start test', parameters: [uuidParam('testId')], responses: created } },
       '/api/attempts/{attemptId}': { get: { tags: ['Tests'], security: bearer, summary: 'Get attempt', parameters: [uuidParam('attemptId')], responses: ok() } },
@@ -245,6 +265,7 @@ const options = {
       '/api/payments/verify': { post: { tags: ['Payments'], security: bearer, summary: 'Verify payment', responses: ok() } },
       '/api/payments/webhook': { post: { tags: ['Payments'], summary: 'Razorpay webhook', responses: ok() } },
       '/api/help/faqs': { get: { tags: ['Support'], summary: 'FAQs', responses: ok() } },
+      '/api/help/contact': { get: { tags: ['Support'], summary: 'Help contact (phone, WhatsApp, hours)', responses: ok() } },
       '/api/support/tickets': {
         get: { tags: ['Support'], security: bearer, summary: 'My tickets', responses: ok() },
         post: { tags: ['Support'], security: bearer, summary: 'Create ticket', responses: created }
@@ -266,6 +287,11 @@ const options = {
         patch: { tags: ['Admin'], security: bearer, summary: 'Update user', parameters: [uuidParam('userId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete user', parameters: [uuidParam('userId')], responses: ok() }
       },
+      '/api/admin/users/{userId}/progress': { get: { tags: ['Admin'], security: bearer, summary: 'User progress summary', parameters: [uuidParam('userId')], responses: ok() } },
+      '/api/admin/users/{userId}/continue-learning': { get: { tags: ['Admin'], security: bearer, summary: 'User continue learning', parameters: [uuidParam('userId')], responses: ok() } },
+      '/api/admin/users/{userId}/activity': { get: { tags: ['Admin'], security: bearer, summary: 'User activity', parameters: [uuidParam('userId')], responses: ok() } },
+      '/api/admin/users/{userId}/course-progress': { get: { tags: ['Admin'], security: bearer, summary: 'User course progress', parameters: [uuidParam('userId')], responses: ok() } },
+      '/api/admin/users/{userId}/test-history': { get: { tags: ['Admin'], security: bearer, summary: 'User test results by userId', parameters: [uuidParam('userId')], responses: ok() } },
       '/api/admin/users/{userId}/status': { patch: { tags: ['Admin'], security: bearer, summary: 'Update user status', parameters: [uuidParam('userId')], responses: ok() } },
       '/api/admin/courses': {
         get: { tags: ['Admin'], security: bearer, summary: 'List courses', responses: ok() },
@@ -359,12 +385,15 @@ const options = {
         patch: { tags: ['Admin'], security: bearer, summary: 'Update test', parameters: [uuidParam('testId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete test', parameters: [uuidParam('testId')], responses: ok() }
       },
-      '/api/admin/tests/{testId}/questions': { post: { tags: ['Admin'], security: bearer, summary: 'Add question', parameters: [uuidParam('testId')], responses: created } },
+      '/api/admin/tests/{testId}/questions': { post: { tags: ['Admin'], security: bearer, summary: 'Add multiple-choice question (options + correctAnswer)', parameters: [uuidParam('testId')], responses: created } },
+      '/api/admin/tests/{testId}/results': { get: { tags: ['Admin'], security: bearer, summary: 'Results for a test, including userId', parameters: [uuidParam('testId')], responses: ok() } },
+      '/api/admin/results': { get: { tags: ['Admin'], security: bearer, summary: 'List test results by userId or testId', parameters: [{ name: 'userId', in: 'query', schema: { type: 'string', format: 'uuid' } }, { name: 'testId', in: 'query', schema: { type: 'string', format: 'uuid' } }], responses: ok() } },
       '/api/admin/questions/upload': { post: { tags: ['Admin'], security: bearer, summary: 'Upload question image', responses: created } },
       '/api/admin/questions/{questionId}': {
         patch: { tags: ['Admin'], security: bearer, summary: 'Update question', parameters: [uuidParam('questionId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete question', parameters: [uuidParam('questionId')], responses: ok() }
       },
+      '/api/admin/attempts/{attemptId}/result': { get: { tags: ['Admin'], security: bearer, summary: 'View any attempt result', parameters: [uuidParam('attemptId')], responses: ok() } },
       '/api/admin/analytics/overview': { get: { tags: ['Admin'], security: bearer, summary: 'Analytics overview', responses: ok() } },
       '/api/admin/analytics/users': { get: { tags: ['Admin'], security: bearer, summary: 'User analytics', responses: ok() } },
       '/api/admin/analytics/courses': { get: { tags: ['Admin'], security: bearer, summary: 'Course analytics', responses: ok() } },
@@ -384,9 +413,6 @@ const options = {
       '/api/admin/support/tickets/{ticketId}': { get: { tags: ['Admin'], security: bearer, summary: 'Get ticket', parameters: [uuidParam('ticketId')], responses: ok() } },
       '/api/admin/support/tickets/{ticketId}/status': { patch: { tags: ['Admin'], security: bearer, summary: 'Update ticket status', parameters: [uuidParam('ticketId')], responses: ok() } },
       '/api/admin/support/tickets/{ticketId}/reply': { post: { tags: ['Admin'], security: bearer, summary: 'Reply to ticket', parameters: [uuidParam('ticketId')], responses: ok() } },
-      '/api/admin/legal/terms': { patch: { tags: ['Admin'], security: bearer, summary: 'Update terms', responses: ok() } },
-      '/api/admin/legal/privacy-policy': { patch: { tags: ['Admin'], security: bearer, summary: 'Update privacy policy', responses: ok() } },
-      '/api/admin/legal/refund-policy': { patch: { tags: ['Admin'], security: bearer, summary: 'Update refund policy', responses: ok() } },
       '/api/admin/notifications': {
         get: { tags: ['Admin'], security: bearer, summary: 'List notifications', responses: ok() },
         post: { tags: ['Admin'], security: bearer, summary: 'Create notification', responses: created }
@@ -400,6 +426,22 @@ const options = {
         get: { tags: ['Admin'], security: bearer, summary: 'Get FAQ', parameters: [uuidParam('faqId')], responses: ok() },
         patch: { tags: ['Admin'], security: bearer, summary: 'Update FAQ', parameters: [uuidParam('faqId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete FAQ', parameters: [uuidParam('faqId')], responses: ok() }
+      },
+      '/api/admin/help/contact': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get help contact', responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update help contact', requestBody: jsonBody({ type: 'object', properties: { phone: { type: 'string' }, whatsapp: { type: 'string' }, hours: { type: 'string' }, email: { type: 'string' }, address: { type: 'string' } } }), responses: ok() }
+      },
+      '/api/admin/legal/terms': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get terms', responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update terms', responses: ok() }
+      },
+      '/api/admin/legal/privacy-policy': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get privacy policy', responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update privacy policy', responses: ok() }
+      },
+      '/api/admin/legal/refund-policy': {
+        get: { tags: ['Admin'], security: bearer, summary: 'Get refund policy', responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update refund policy', responses: ok() }
       }
     }
   },

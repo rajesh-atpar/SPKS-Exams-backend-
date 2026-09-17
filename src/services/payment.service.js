@@ -62,15 +62,26 @@ export class PaymentService {
   async currentSubscription(userId) {
     const { items } = await repos.subscriptions.findMany({
       filters: { userId, status: SUBSCRIPTION_STATUS.ACTIVE },
-      limit: 1
+      limit: 5
     });
     const subscription = items[0] || null;
     if (!subscription) return null;
     if (new Date(subscription.endsAt) < new Date()) {
-      return repos.subscriptions.update(subscription.id, { status: SUBSCRIPTION_STATUS.EXPIRED });
+      await repos.subscriptions.update(subscription.id, { status: SUBSCRIPTION_STATUS.EXPIRED });
+      return null;
     }
     const plan = await repos.plans.findById(subscription.planId);
     return { ...subscription, plan };
+  }
+
+  async hasActiveSubscription(userId) {
+    if (!userId) return false;
+    const subscription = await this.currentSubscription(userId);
+    if (!subscription) return false;
+    const plan = subscription.plan;
+    if (!plan) return true;
+    if (Number(plan.price) <= 0 || Number(plan.duration) <= 0) return false;
+    return true;
   }
 
   async paymentHistory(userId, query) {
