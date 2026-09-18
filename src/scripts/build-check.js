@@ -66,6 +66,8 @@ const expected = {
     'GET /subjects/:subjectId',
     'GET /chapters/:chapterId',
     'GET /lessons/:lessonId',
+    'POST /lessons/upload',
+    'POST /lessons/:lessonId/pdf',
     'POST /questions/upload',
     'GET /results',
     'GET /tests/:testId/results',

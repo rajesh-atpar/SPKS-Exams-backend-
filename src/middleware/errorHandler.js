@@ -10,6 +10,8 @@ export const errorHandler = (err, req, res, next) => {
     user: req.user?.id
   });
 
+  if (res.headersSent) return;
+
   const statusCode = err.statusCode || err.status || HTTP_STATUS.INTERNAL_SERVER_ERROR;
 
   res.status(statusCode).json({

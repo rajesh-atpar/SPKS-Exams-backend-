@@ -105,3 +105,46 @@ export const uploadQuestionImage = uploadSingle('questionImage');
 export const uploadExamPdf = uploadSingle('examPdf');
 export const uploadContentFile = uploadSingle('file');
 export const uploadImage = uploadSingle('image');
+
+const pdfFilter = (req, file, cb) => {
+  if (FILE_UPLOAD.ALLOWED_DOCUMENT_TYPES.includes(file.mimetype)) {
+    cb(null, true);
+    return;
+  }
+  cb(new Error('Invalid file type. Only PDF files are allowed.'), false);
+};
+
+const pdfUpload = multer({
+  storage,
+  limits: {
+    fileSize: FILE_UPLOAD.MAX_SIZE
+  },
+  fileFilter: pdfFilter
+});
+
+export const uploadLessonPdf = (req, res, next) => {
+  pdfUpload.single('file')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: `File size exceeds maximum limit of ${FILE_UPLOAD.MAX_SIZE / 1024 / 1024}MB`,
+          code: ERROR_CODES.VALIDATION_ERROR
+        });
+      }
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: err.message,
+        code: ERROR_CODES.VALIDATION_ERROR
+      });
+    }
+    if (err) {
+      return res.status(HTTP_STATUS.BAD_REQUEST).json({
+        success: false,
+        message: err.message,
+        code: ERROR_CODES.VALIDATION_ERROR
+      });
+    }
+    next();
+  });
+};

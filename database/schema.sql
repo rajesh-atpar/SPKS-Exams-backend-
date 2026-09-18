@@ -215,6 +215,8 @@ CREATE TABLE IF NOT EXISTS lessons (
   title VARCHAR(255) NOT NULL,
   description TEXT,
   content TEXT,
+  pdf_url TEXT,
+  pdf_path TEXT,
   duration INTEGER DEFAULT 0,
   display_order INTEGER DEFAULT 0,
   is_published BOOLEAN DEFAULT true,

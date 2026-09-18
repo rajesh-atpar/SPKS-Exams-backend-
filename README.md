@@ -14,7 +14,7 @@ Express + Supabase backend for the SPKS mobile app and admin panel.
 ## Setup
 
 1. Copy `.env.example` to `.env.local` and fill in Supabase, JWT, and optional Razorpay keys.
- 2. Run `database/schema.sql` in the Supabase SQL editor for a new database. For an existing database, run `database/migrations/2026-09-17-missing-features.sql` instead (adds `videos.group_id`, `platform_settings`, and test groups: Group 1–4 + Others).
+ 2. Run `database/schema.sql` in the Supabase SQL editor for a new database. For an existing database, run `database/migrations/2026-09-17-missing-features.sql` and `database/migrations/2026-09-18-lesson-pdfs.sql` instead.
 3. Install and start:
 
 ```bash
@@ -33,7 +33,7 @@ Staff log in at `/api/admin/auth/*`. Roles are `admin`, `editor`, and `support`.
 
 Send `Authorization: Bearer <accessToken>` on protected routes. Use `refreshToken` with `/refresh-token` to rotate tokens.
 
-Premium items return `isPremium` and `isLocked`. Locked items hide `fileUrl` / `videoUrl` / `youtubeId`. Download, video play, and test start return `403` with `code: PREMIUM_REQUIRED` until `GET /api/subscriptions/current` is an active paid plan.
+Premium items return `isPremium` and `isLocked`. Locked items hide `fileUrl` / `pdfUrl` / `pdfViewUrl` / `viewUrl` / `videoUrl` / `youtubeId`. Download, video play, and test start return `403` with `code: PREMIUM_REQUIRED` until `GET /api/subscriptions/current` is an active paid plan. Lesson and content PDFs should be opened with `pdfViewUrl` / `viewUrl` in an in-app PDF viewer (`Content-Disposition: inline`). Do not save those files to device storage.
 
 Correct answers are omitted from app test payloads until the attempt is submitted. After submit, the result is stored with `userId` and returned to the same user (`/api/attempts/:attemptId/result` and `/api/users/me/test-history`).
 
@@ -76,9 +76,11 @@ Admin creates a published test under a course group (TNPSC Group 1–4 or Others
 | Catalog | GET | `/api/subjects/:subjectId/chapters` `/content` |
 | Catalog | GET | `/api/chapters/:chapterId/lessons` `/content` |
 | Lessons | GET | `/api/lessons/:lessonId` |
+| Lessons | GET | `/api/lessons/:lessonId/pdf` (inline view, not download) |
 | Lessons | POST | `/api/lessons/:lessonId/progress` |
 | Lessons | POST | `/api/lessons/:lessonId/complete` |
 | Content | GET | `/api/content` `/api/content/:contentId` |
+| Content | GET | `/api/content/:contentId/view` (inline PDF view) |
 | Content | GET | `/api/content/:contentId/download` |
 | Content | POST/DELETE | `/api/content/:contentId/bookmark` |
 | Videos | GET | `/api/videos` `/api/videos/:videoId` |
@@ -137,7 +139,9 @@ All `/api/admin/*` routes except login/forgot/reset/refresh require a staff Bear
 | Chapters | GET/POST | `/api/admin/chapters` |
 | Chapters | GET/PATCH/DELETE | `/api/admin/chapters/:chapterId` |
 | Lessons | GET/POST | `/api/admin/lessons` |
+| Lessons | POST | `/api/admin/lessons/upload` |
 | Lessons | GET/PATCH/DELETE | `/api/admin/lessons/:lessonId` |
+| Lessons | POST | `/api/admin/lessons/:lessonId/pdf` (replace PDF) |
 | Videos | GET/POST | `/api/admin/videos` (`groupId` supported) |
 | Videos | GET/PATCH/DELETE | `/api/admin/videos/:videoId` |
 | Current affairs | GET/POST | `/api/admin/current-affairs` |

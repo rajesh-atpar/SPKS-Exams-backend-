@@ -225,11 +225,13 @@ const options = {
       '/api/chapters/{chapterId}': { get: { tags: ['Catalog'], summary: 'Get chapter', parameters: [uuidParam('chapterId')], responses: ok() } },
       '/api/chapters/{chapterId}/lessons': { get: { tags: ['Catalog'], summary: 'Chapter lessons', parameters: [uuidParam('chapterId')], responses: ok() } },
       '/api/chapters/{chapterId}/content': { get: { tags: ['Content'], summary: 'Chapter content', parameters: [uuidParam('chapterId')], responses: ok() } },
-      '/api/lessons/{lessonId}': { get: { tags: ['Catalog'], summary: 'Get lesson', parameters: [uuidParam('lessonId')], responses: ok() } },
+      '/api/lessons/{lessonId}': { get: { tags: ['Catalog'], summary: 'Get lesson (includes pdfUrl and pdfViewUrl)', parameters: [uuidParam('lessonId')], responses: ok() } },
+      '/api/lessons/{lessonId}/pdf': { get: { tags: ['Catalog'], summary: 'View lesson PDF inline (do not download)', parameters: [uuidParam('lessonId')], responses: { 200: { description: 'PDF stream', content: { 'application/pdf': { schema: { type: 'string', format: 'binary' } } } } } } },
       '/api/lessons/{lessonId}/progress': { post: { tags: ['Catalog'], security: bearer, summary: 'Record lesson access for continue-learning', parameters: [uuidParam('lessonId')], responses: ok() } },
       '/api/lessons/{lessonId}/complete': { post: { tags: ['Catalog'], security: bearer, summary: 'Complete lesson', parameters: [uuidParam('lessonId')], responses: ok() } },
       '/api/content': { get: { tags: ['Content'], summary: 'List content', responses: ok() } },
-      '/api/content/{contentId}': { get: { tags: ['Content'], summary: 'Get content', parameters: [uuidParam('contentId')], responses: ok() } },
+      '/api/content/{contentId}': { get: { tags: ['Content'], summary: 'Get content (includes viewUrl for in-app PDF viewing)', parameters: [uuidParam('contentId')], responses: ok() } },
+      '/api/content/{contentId}/view': { get: { tags: ['Content'], summary: 'View content PDF inline (do not download)', parameters: [uuidParam('contentId')], responses: { 200: { description: 'PDF stream', content: { 'application/pdf': { schema: { type: 'string', format: 'binary' } } } } } } },
       '/api/content/{contentId}/download': { get: { tags: ['Content'], security: bearer, summary: 'Download content', parameters: [uuidParam('contentId')], responses: ok() } },
       '/api/content/{contentId}/bookmark': {
         post: { tags: ['Content'], security: bearer, summary: 'Bookmark content', parameters: [uuidParam('contentId')], responses: created },
@@ -350,13 +352,15 @@ const options = {
       },
       '/api/admin/lessons': {
         get: { tags: ['Admin'], security: bearer, summary: 'List lessons', responses: ok() },
-        post: { tags: ['Admin'], security: bearer, summary: 'Create lesson', responses: created }
+        post: { tags: ['Admin'], security: bearer, summary: 'Create lesson (optional pdfUrl)', responses: created }
       },
+      '/api/admin/lessons/upload': { post: { tags: ['Admin'], security: bearer, summary: 'Upload a lesson PDF and get url/path', responses: created } },
       '/api/admin/lessons/{lessonId}': {
         get: { tags: ['Admin'], security: bearer, summary: 'Get lesson', parameters: [uuidParam('lessonId')], responses: ok() },
-        patch: { tags: ['Admin'], security: bearer, summary: 'Update lesson', parameters: [uuidParam('lessonId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update lesson (optional pdfUrl)', parameters: [uuidParam('lessonId')], responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete lesson', parameters: [uuidParam('lessonId')], responses: ok() }
       },
+      '/api/admin/lessons/{lessonId}/pdf': { post: { tags: ['Admin'], security: bearer, summary: 'Upload or replace the lesson PDF', parameters: [uuidParam('lessonId')], responses: ok() } },
       '/api/admin/videos': {
         get: { tags: ['Admin'], security: bearer, summary: 'List videos', responses: ok() },
         post: { tags: ['Admin'], security: bearer, summary: 'Create video', responses: created }

@@ -1,4 +1,5 @@
 import { repos } from '../repositories/repos.js';
+import { FILE_UPLOAD } from '../config/constants.js';
 import { getPaginationParams } from '../utils/pagination.js';
 import { notFound } from '../utils/errors.js';
 import fileService from './file.service.js';
@@ -7,7 +8,34 @@ import progressService from './progress.service.js';
 
 const published = (admin) => (admin ? {} : { isPublished: true });
 
+const apiPath = (path) => {
+  const base = String(process.env.API_BASE_URL || '').replace(/\/+$/, '');
+  return base ? `${base}${path}` : path;
+};
+
+const emptyToNull = (value) => (value === '' ? null : value);
+
 export class ContentService {
+  withContentView(item) {
+    if (!item) return item;
+    return {
+      ...item,
+      viewUrl: item.fileUrl ? apiPath(`/api/content/${item.id}/view`) : null
+    };
+  }
+
+  presentLesson(lesson, { admin = false } = {}) {
+    if (!lesson) return lesson;
+    const { pdfPath, ...rest } = lesson;
+    const hasPdf = Boolean(lesson.pdfUrl || pdfPath);
+    return {
+      ...rest,
+      pdfUrl: lesson.pdfUrl || null,
+      pdfViewUrl: hasPdf ? apiPath(`/api/lessons/${lesson.id}/pdf`) : null,
+      ...(admin ? { pdfPath: pdfPath || null } : {})
+    };
+  }
+
   async list(query, extraFilters = {}, { admin = false, user = null } = {}) {
     const { page, limit } = getPaginationParams(query);
     const { user: _user, ...safeFilters } = extraFilters;
@@ -32,8 +60,9 @@ export class ContentService {
       searchFields: ['title', 'description']
     });
 
+    const visible = admin ? items : await accessService.applyList(items, user);
     return {
-      items: admin ? items : await accessService.applyList(items, user),
+      items: visible.map((item) => this.withContentView(item)),
       total,
       page,
       limit
@@ -43,8 +72,8 @@ export class ContentService {
   async get(contentId, { admin = false, user = null } = {}) {
     const item = await repos.content.findById(contentId);
     if (!item || (!admin && !item.isPublished)) throw notFound('Content');
-    if (admin) return item;
-    return accessService.applyItem(item, user);
+    const visible = admin ? item : await accessService.applyItem(item, user);
+    return this.withContentView(visible);
   }
 
   create(payload) {
@@ -75,6 +104,21 @@ export class ContentService {
     }
     await repos.content.increment(contentId, 'downloadCount');
     return { fileUrl: item.fileUrl, title: item.title };
+  }
+
+  async viewContent(contentId, user, res) {
+    const item = await repos.content.findById(contentId);
+    if (!item || !item.isPublished) throw notFound('Content');
+    await accessService.assertUnlocked(user, item, 'This file');
+    if (!item.fileUrl) throw notFound('PDF');
+    if (user?.id) {
+      await progressService.recordContentAccess(user.id, item);
+    }
+    await fileService.streamPdf(res, {
+      fileUrl: item.fileUrl,
+      filePath: fileService.extractUploadsPath(item.fileUrl),
+      filename: `${item.title || 'document'}.pdf`
+    });
   }
 
   async listChapters(subjectId, query, { admin = false } = {}) {
@@ -124,28 +168,65 @@ export class ContentService {
       orderBy: 'display_order',
       order: 'asc'
     });
-    return { items, total, page, limit };
+    return {
+      items: items.map((lesson) => this.presentLesson(lesson, { admin })),
+      total,
+      page,
+      limit
+    };
   }
 
   async getLesson(lessonId, { admin = false } = {}) {
     const lesson = await repos.lessons.findById(lessonId);
     if (!lesson || (!admin && !lesson.isPublished)) throw notFound('Lesson');
-    return lesson;
+    return this.presentLesson(lesson, { admin });
   }
 
-  createLesson(payload) {
-    return repos.lessons.create(payload);
+  async createLesson(payload) {
+    return this.presentLesson(await repos.lessons.create(payload), { admin: true });
   }
 
   async updateLesson(lessonId, payload) {
     await this.getLesson(lessonId, { admin: true });
-    return repos.lessons.update(lessonId, payload);
+    const next = { ...payload };
+    if (Object.prototype.hasOwnProperty.call(next, 'pdfUrl')) next.pdfUrl = emptyToNull(next.pdfUrl);
+    if (Object.prototype.hasOwnProperty.call(next, 'pdfPath')) next.pdfPath = emptyToNull(next.pdfPath);
+    return this.presentLesson(await repos.lessons.update(lessonId, next), { admin: true });
   }
 
   async deleteLesson(lessonId) {
-    await this.getLesson(lessonId, { admin: true });
+    const lesson = await this.getLesson(lessonId, { admin: true });
     await repos.lessons.remove(lessonId);
+    await fileService.deleteQuietly(lesson.pdfPath);
     return { message: 'Lesson deleted' };
+  }
+
+  async uploadLessonPdf(file) {
+    return fileService.uploadFile(file, FILE_UPLOAD.LESSON_PDF_PATH);
+  }
+
+  async replaceLessonPdf(lessonId, file) {
+    const lesson = await this.getLesson(lessonId, { admin: true });
+    const uploaded = await this.uploadLessonPdf(file);
+    const updated = await repos.lessons.update(lessonId, {
+      pdfUrl: uploaded.url,
+      pdfPath: uploaded.path
+    });
+    if (lesson.pdfPath && lesson.pdfPath !== uploaded.path) {
+      await fileService.deleteQuietly(lesson.pdfPath);
+    }
+    return this.presentLesson(updated, { admin: true });
+  }
+
+  async viewLessonPdf(lessonId, res) {
+    const lesson = await repos.lessons.findById(lessonId);
+    if (!lesson || !lesson.isPublished) throw notFound('Lesson');
+    if (!lesson.pdfUrl && !lesson.pdfPath) throw notFound('Lesson PDF');
+    await fileService.streamPdf(res, {
+      filePath: lesson.pdfPath,
+      fileUrl: lesson.pdfUrl,
+      filename: `${lesson.title || 'lesson'}.pdf`
+    });
   }
 
   async completeLesson(userId, lessonId) {

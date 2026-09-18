@@ -18,6 +18,10 @@ export const downloadContent = asyncHandler(async (req, res) => {
   return successResponse(res, 'Download ready', await contentService.download(req.params.contentId, req.user));
 });
 
+export const viewContent = asyncHandler(async (req, res) => {
+  await contentService.viewContent(req.params.contentId, req.user, res);
+});
+
 export const subjectContent = asyncHandler(async (req, res) => {
   const data = await contentService.list(req.query, { subjectId: req.params.subjectId }, { user: req.user });
   return paginatedResponse(res, 'Content fetched successfully', data.items, data);
@@ -54,6 +58,10 @@ export const getLesson = asyncHandler(async (req, res) => {
   return successResponse(res, 'Lesson fetched successfully', await contentService.getLesson(req.params.lessonId));
 });
 
+export const viewLessonPdf = asyncHandler(async (req, res) => {
+  await contentService.viewLessonPdf(req.params.lessonId, res);
+});
+
 export const completeLesson = asyncHandler(async (req, res) => {
   return successResponse(res, 'Lesson completed', await contentService.completeLesson(req.user.id, req.params.lessonId));
 });
@@ -86,6 +94,16 @@ export const adminDeleteContent = asyncHandler(async (req, res) => {
 export const adminUploadContent = asyncHandler(async (req, res) => {
   if (!req.file) throw badRequest('File is required');
   return successResponse(res, 'File uploaded successfully', await contentService.upload(req.file), HTTP_STATUS.CREATED);
+});
+
+export const adminUploadLessonPdf = asyncHandler(async (req, res) => {
+  if (!req.file) throw badRequest('PDF file is required');
+  return successResponse(res, 'Lesson PDF uploaded successfully', await contentService.uploadLessonPdf(req.file), HTTP_STATUS.CREATED);
+});
+
+export const adminReplaceLessonPdf = asyncHandler(async (req, res) => {
+  if (!req.file) throw badRequest('PDF file is required');
+  return successResponse(res, 'Lesson PDF updated successfully', await contentService.replaceLessonPdf(req.params.lessonId, req.file));
 });
 
 export const adminListChapters = asyncHandler(async (req, res) => {

@@ -118,6 +118,7 @@ export const FILE_UPLOAD = {
   ALLOWED_DOCUMENT_TYPES: ['application/pdf'],
   PROFILE_IMAGE_PATH: 'profile-images',
   CONTENT_PATH: 'content',
+  LESSON_PDF_PATH: 'lessons',
   VIDEO_PATH: 'videos',
   CURRENT_AFFAIRS_PATH: 'current-affairs',
   QUESTION_IMAGE_PATH: 'question-images'

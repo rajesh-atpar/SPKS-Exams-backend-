@@ -103,11 +103,19 @@ export const chapterUpdateValidator = [
   optionalBoolean('isPublished')
 ];
 
+const optionalPdfField = (field) => body(field).optional({ values: 'undefined' }).custom((value) => {
+  if (value === null || value === '') return true;
+  if (typeof value === 'string') return true;
+  throw new Error(`${field} must be a string or null`);
+});
+
 export const lessonBodyValidator = [
   body('chapterId').isUUID().withMessage('chapterId is required'),
   body('title').trim().isLength({ min: 1, max: 255 }).withMessage('Title is required'),
   body('description').optional().isString(),
   body('content').optional().isString(),
+  body('pdfUrl').optional({ values: 'falsy' }).isString(),
+  body('pdfPath').optional({ values: 'falsy' }).isString(),
   optionalInt('duration'),
   optionalInt('displayOrder'),
   optionalBoolean('isPublished')
@@ -118,6 +126,8 @@ export const lessonUpdateValidator = [
   body('title').optional().trim().isLength({ min: 1, max: 255 }),
   body('description').optional().isString(),
   body('content').optional().isString(),
+  optionalPdfField('pdfUrl'),
+  optionalPdfField('pdfPath'),
   optionalInt('duration'),
   optionalInt('displayOrder'),
   optionalBoolean('isPublished')

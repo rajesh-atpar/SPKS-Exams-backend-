@@ -2,7 +2,7 @@ import { STAFF_ROLES } from '../config/constants.js';
 import { premiumRequired } from '../utils/errors.js';
 import paymentService from './payment.service.js';
 
-const PREMIUM_FIELDS = ['fileUrl', 'videoUrl', 'youtubeId', 'content'];
+const PREMIUM_FIELDS = ['fileUrl', 'pdfUrl', 'pdfViewUrl', 'viewUrl', 'videoUrl', 'youtubeId', 'content'];
 
 export class AccessService {
   async hasPremium(user) {

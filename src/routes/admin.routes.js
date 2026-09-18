@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate, authorizeAdmin, authorizeStaff } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
-import { uploadContentFile, uploadQuestionImage } from '../middleware/upload.js';
+import { uploadContentFile, uploadLessonPdf, uploadQuestionImage } from '../middleware/upload.js';
 import { uuidParam } from '../validators/common.validator.js';
 import {
   chapterBodyValidator,
@@ -83,9 +83,11 @@ router.get('/chapters/:chapterId', uuidParam('chapterId'), validate, contentCont
 router.patch('/chapters/:chapterId', uuidParam('chapterId'), chapterUpdateValidator, validate, contentController.adminUpdateChapter);
 router.delete('/chapters/:chapterId', uuidParam('chapterId'), validate, contentController.adminDeleteChapter);
 
+router.post('/lessons/upload', uploadLessonPdf, contentController.adminUploadLessonPdf);
 router.post('/lessons', lessonBodyValidator, validate, contentController.adminCreateLesson);
 router.get('/lessons', contentController.adminListLessons);
 router.get('/lessons/:lessonId', uuidParam('lessonId'), validate, contentController.adminGetLesson);
+router.post('/lessons/:lessonId/pdf', uuidParam('lessonId'), validate, uploadLessonPdf, contentController.adminReplaceLessonPdf);
 router.patch('/lessons/:lessonId', uuidParam('lessonId'), lessonUpdateValidator, validate, contentController.adminUpdateLesson);
 router.delete('/lessons/:lessonId', uuidParam('lessonId'), validate, contentController.adminDeleteLesson);
 

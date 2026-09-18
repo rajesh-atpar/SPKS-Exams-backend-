@@ -8,6 +8,7 @@ const router = Router();
 
 router.get('/', optionalAuth, contentController.listContent);
 router.get('/:contentId', optionalAuth, uuidParam('contentId'), validate, contentController.getContent);
+router.get('/:contentId/view', optionalAuth, uuidParam('contentId'), validate, contentController.viewContent);
 router.get('/:contentId/download', authenticate, uuidParam('contentId'), validate, contentController.downloadContent);
 router.post('/:contentId/bookmark', authenticate, authorizeAppUser, uuidParam('contentId'), validate, contentController.bookmarkContent);
 router.delete('/:contentId/bookmark', authenticate, authorizeAppUser, uuidParam('contentId'), validate, contentController.unbookmarkContent);
