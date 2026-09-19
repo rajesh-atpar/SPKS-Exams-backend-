@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate, authorizeAppUser, optionalAuth } from '../middleware/auth.js';
 import { validate } from '../middleware/validation.js';
 import { uuidParam } from '../validators/common.validator.js';
+import { createOrderValidator, verifyPaymentValidator } from '../validators/payment.validator.js';
 import * as platformController from '../controllers/platform.controller.js';
 
 export const planRoutes = Router();
@@ -14,11 +15,12 @@ subscriptionRoutes.get('/current', platformController.currentSubscription);
 subscriptionRoutes.post('/:subscriptionId/cancel', uuidParam('subscriptionId'), validate, platformController.cancelSubscription);
 
 export const paymentRoutes = Router();
+paymentRoutes.get('/config', platformController.paymentConfig);
 paymentRoutes.post('/webhook', platformController.paymentWebhook);
 paymentRoutes.use(authenticate, authorizeAppUser);
 paymentRoutes.get('/history', platformController.paymentHistory);
-paymentRoutes.post('/create-order', platformController.createOrder);
-paymentRoutes.post('/verify', platformController.verifyPayment);
+paymentRoutes.post('/create-order', createOrderValidator, validate, platformController.createOrder);
+paymentRoutes.post('/verify', verifyPaymentValidator, validate, platformController.verifyPayment);
 
 export const helpRoutes = Router();
 helpRoutes.get('/faqs', platformController.listFaqs);

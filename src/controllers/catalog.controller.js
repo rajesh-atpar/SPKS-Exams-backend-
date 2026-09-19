@@ -2,13 +2,23 @@ import catalogService from '../services/catalog.service.js';
 import contentService from '../services/content.service.js';
 import mediaService from '../services/media.service.js';
 import testService from '../services/test.service.js';
+import accessService from '../services/access.service.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { paginatedResponse, successResponse } from '../utils/response.js';
 import { HTTP_STATUS } from '../config/constants.js';
 
+const withCourseAccess = async (items, user) => {
+  const hasAccess = await accessService.hasPremium(user);
+  return (items || []).map((course) => ({
+    ...course,
+    requiresPlan: true,
+    isLocked: !hasAccess
+  }));
+};
+
 export const listCourses = asyncHandler(async (req, res) => {
   const data = await catalogService.listCourses(req.query, { publishedOnly: true });
-  return paginatedResponse(res, 'Courses fetched successfully', data.items, data);
+  return paginatedResponse(res, 'Courses fetched successfully', await withCourseAccess(data.items, req.user), data);
 });
 
 export const getCourse = asyncHandler(async (req, res) => {

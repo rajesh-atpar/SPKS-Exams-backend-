@@ -525,12 +525,12 @@ export const DEFAULT_PLANS = [
     duration: 0,
     features: ['Limited tests', 'Daily current affairs'],
     courseAccess: [],
-    isActive: true
+    isActive: false
   },
   {
     id: '22222222-2222-4222-8222-222222222222',
     name: 'Monthly',
-    price: 299,
+    price: 1,
     currency: 'INR',
     duration: 30,
     features: ['All courses', 'Unlimited tests', 'Premium notes'],
@@ -538,9 +538,19 @@ export const DEFAULT_PLANS = [
     isActive: true
   },
   {
+    id: '44444444-4444-4444-8444-444444444444',
+    name: '6 Months',
+    price: 2,
+    currency: 'INR',
+    duration: 180,
+    features: ['All courses', 'Unlimited tests', 'Premium notes'],
+    courseAccess: ['all'],
+    isActive: true
+  },
+  {
     id: '33333333-3333-4333-8333-333333333333',
     name: 'Yearly',
-    price: 2499,
+    price: 3,
     currency: 'INR',
     duration: 365,
     features: ['All courses', 'Unlimited tests', 'Premium notes', 'Priority support'],
@@ -612,7 +622,7 @@ export const DEFAULT_HELP_CONTACT_SETTING = {
 
 export const DEFAULT_FAQS = [
   { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1', question: 'How do I start a test?', answer: 'Open Tests, choose a paper, and tap Start.', category: 'tests', displayOrder: 1, isPublished: true },
-  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', question: 'How do subscriptions work?', answer: 'Pick a plan and complete payment to unlock premium content.', category: 'payments', displayOrder: 2, isPublished: true },
+  { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', question: 'How do subscriptions work?', answer: 'After login, pick 1 month, 6 months, or 1 year, pay with Razorpay, then open courses. When the plan expires you must buy again.', category: 'payments', displayOrder: 2, isPublished: true },
   { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3', question: 'Can I reset my password?', answer: 'Use Forgot Password on the login screen.', category: 'account', displayOrder: 3, isPublished: true }
 ];
 

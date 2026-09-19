@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { repos } from '../repositories/repos.js';
 import { PAYMENT_STATUS, SUBSCRIPTION_STATUS } from '../config/constants.js';
 import { getPaginationParams } from '../utils/pagination.js';
-import { badRequest, notFound } from '../utils/errors.js';
+import { omit } from '../utils/case.js';
+import { badRequest, conflict, notFound } from '../utils/errors.js';
 
 const addDays = (date, days) => {
   const next = new Date(date);
@@ -10,9 +11,46 @@ const addDays = (date, days) => {
   return next;
 };
 
+const daysRemaining = (endsAt, from = new Date()) =>
+  Math.max(0, Math.ceil((new Date(endsAt) - from) / 86400000));
+
+const planInterval = (duration) => {
+  const days = Number(duration || 0);
+  if (days >= 360) return '1_year';
+  if (days >= 150) return '6_months';
+  if (days > 0) return '1_month';
+  return 'none';
+};
+
+const publicUser = (user) => {
+  if (!user) return null;
+  return omit(user, ['passwordHash', 'password', 'hashedPassword']);
+};
+
 export class PaymentService {
   razorpayConfigured() {
     return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+  }
+
+  isPaidPlan(plan) {
+    return Number(plan?.price) > 0 && Number(plan?.duration) > 0;
+  }
+
+  presentPlan(plan) {
+    if (!plan) return plan;
+    return {
+      ...plan,
+      interval: planInterval(plan.duration),
+      amountPaise: Math.round(Number(plan.price || 0) * 100)
+    };
+  }
+
+  checkoutConfig() {
+    return {
+      keyId: process.env.RAZORPAY_KEY_ID || null,
+      currency: 'INR',
+      configured: this.razorpayConfigured()
+    };
   }
 
   async getRazorpay() {
@@ -33,24 +71,32 @@ export class PaymentService {
       page,
       limit,
       search: query.search,
-      searchFields: ['name']
+      searchFields: ['name'],
+      orderBy: 'duration',
+      order: 'asc'
     });
-    return { items, total, page, limit };
+    const visible = admin ? items : items.filter((plan) => this.isPaidPlan(plan));
+    return {
+      items: visible.map((plan) => this.presentPlan(plan)),
+      total: admin ? total : visible.length,
+      page,
+      limit
+    };
   }
 
   async getPlan(planId) {
     const plan = await repos.plans.findById(planId);
     if (!plan) throw notFound('Plan');
-    return plan;
+    return this.presentPlan(plan);
   }
 
   createPlan(payload) {
-    return repos.plans.create(payload);
+    return repos.plans.create(payload).then((plan) => this.presentPlan(plan));
   }
 
   async updatePlan(planId, payload) {
     await this.getPlan(planId);
-    return repos.plans.update(planId, payload);
+    return this.presentPlan(await repos.plans.update(planId, payload));
   }
 
   async deletePlan(planId) {
@@ -60,28 +106,51 @@ export class PaymentService {
   }
 
   async currentSubscription(userId) {
+    if (!userId) return null;
     const { items } = await repos.subscriptions.findMany({
       filters: { userId, status: SUBSCRIPTION_STATUS.ACTIVE },
-      limit: 5
+      limit: 50
     });
-    const subscription = items[0] || null;
-    if (!subscription) return null;
-    if (new Date(subscription.endsAt) < new Date()) {
-      await repos.subscriptions.update(subscription.id, { status: SUBSCRIPTION_STATUS.EXPIRED });
-      return null;
+
+    const now = new Date();
+    let current = null;
+
+    for (const subscription of items) {
+      if (new Date(subscription.endsAt) < now) {
+        await repos.subscriptions.update(subscription.id, { status: SUBSCRIPTION_STATUS.EXPIRED });
+        continue;
+      }
+      if (!current || new Date(subscription.endsAt) > new Date(current.endsAt)) {
+        current = subscription;
+      }
     }
-    const plan = await repos.plans.findById(subscription.planId);
-    return { ...subscription, plan };
+
+    if (!current) return null;
+
+    const plan = current.planId ? await repos.plans.findById(current.planId) : null;
+    if (plan && !this.isPaidPlan(plan)) return null;
+
+    return {
+      ...current,
+      plan: this.presentPlan(plan),
+      daysRemaining: daysRemaining(current.endsAt, now)
+    };
   }
 
   async hasActiveSubscription(userId) {
-    if (!userId) return false;
     const subscription = await this.currentSubscription(userId);
-    if (!subscription) return false;
-    const plan = subscription.plan;
-    if (!plan) return true;
-    if (Number(plan.price) <= 0 || Number(plan.duration) <= 0) return false;
-    return true;
+    return Boolean(subscription);
+  }
+
+  async accessSnapshot(userId) {
+    if (!userId) {
+      return { hasActiveSubscription: false, subscription: null };
+    }
+    const subscription = await this.currentSubscription(userId);
+    return {
+      hasActiveSubscription: Boolean(subscription),
+      subscription
+    };
   }
 
   async paymentHistory(userId, query) {
@@ -91,29 +160,47 @@ export class PaymentService {
       page,
       limit
     });
-    return { items, total, page, limit };
+    return {
+      items: await this.enrichPayments(items),
+      total,
+      page,
+      limit
+    };
   }
 
   async createOrder(userId, planId) {
+    if (!planId) throw badRequest('planId is required');
     const plan = await this.getPlan(planId);
-    const amountPaise = Math.round(Number(plan.price) * 100);
-    let providerOrderId = `local_${crypto.randomUUID()}`;
+    if (!plan.isActive) throw badRequest('This plan is not available');
+    if (!this.isPaidPlan(plan)) throw badRequest('Choose a paid plan to access courses');
 
-    if (this.razorpayConfigured() && amountPaise > 0) {
-      const razorpay = await this.getRazorpay();
-      const order = await razorpay.orders.create({
-        amount: amountPaise,
-        currency: plan.currency || 'INR',
-        notes: { userId, planId }
-      });
-      providerOrderId = order.id;
+    const active = await this.currentSubscription(userId);
+    if (active) {
+      throw conflict(
+        `You already have an active ${active.plan?.name || 'plan'} until ${new Date(active.endsAt).toISOString()}. Buy again after it expires.`
+      );
     }
+
+    const amountPaise = Math.round(Number(plan.price) * 100);
+    if (amountPaise < 100) throw badRequest('Plan amount must be at least ₹1');
+    if (!this.razorpayConfigured()) throw badRequest('Razorpay is not configured');
+
+    const razorpay = await this.getRazorpay();
+    const order = await razorpay.orders.create({
+      amount: amountPaise,
+      currency: plan.currency || 'INR',
+      notes: {
+        userId: String(userId),
+        planId: String(planId),
+        planName: String(plan.name || '')
+      }
+    });
 
     const payment = await repos.payments.create({
       userId,
       planId,
       provider: 'razorpay',
-      providerOrderId,
+      providerOrderId: order.id,
       amount: plan.price,
       currency: plan.currency || 'INR',
       status: PAYMENT_STATUS.CREATED
@@ -121,14 +208,37 @@ export class PaymentService {
 
     return {
       payment,
-      orderId: providerOrderId,
+      plan,
+      orderId: order.id,
       amount: amountPaise,
       currency: plan.currency || 'INR',
-      keyId: process.env.RAZORPAY_KEY_ID || null
+      keyId: process.env.RAZORPAY_KEY_ID,
+      name: 'SPKS Exams',
+      description: `${plan.name} plan`
     };
   }
 
+  async expireOtherSubscriptions(userId, keepId = null) {
+    const { items } = await repos.subscriptions.findMany({
+      filters: { userId, status: SUBSCRIPTION_STATUS.ACTIVE },
+      limit: 50
+    });
+    await Promise.all(
+      items
+        .filter((subscription) => subscription.id !== keepId)
+        .map((subscription) => repos.subscriptions.update(subscription.id, {
+          status: SUBSCRIPTION_STATUS.EXPIRED
+        }))
+    );
+  }
+
   async activateSubscription(userId, planId, paymentId) {
+    const existingPayment = await repos.payments.findById(paymentId);
+    if (existingPayment?.status === PAYMENT_STATUS.PAID && existingPayment.subscriptionId) {
+      const existing = await repos.subscriptions.findById(existingPayment.subscriptionId);
+      if (existing) return existing;
+    }
+
     const plan = await this.getPlan(planId);
     const startsAt = new Date();
     const subscription = await repos.subscriptions.create({
@@ -138,6 +248,8 @@ export class PaymentService {
       startsAt: startsAt.toISOString(),
       endsAt: addDays(startsAt, plan.duration || 30).toISOString()
     });
+
+    await this.expireOtherSubscriptions(userId, subscription.id);
     await repos.payments.update(paymentId, {
       subscriptionId: subscription.id,
       status: PAYMENT_STATUS.PAID
@@ -145,9 +257,27 @@ export class PaymentService {
     return subscription;
   }
 
-  async verifyPayment(userId, { razorpayOrderId, razorpayPaymentId, razorpaySignature }) {
+  async verifyPayment(userId, payload = {}) {
+    const razorpayOrderId = payload.razorpayOrderId || payload.razorpay_order_id;
+    const razorpayPaymentId = payload.razorpayPaymentId || payload.razorpay_payment_id;
+    const razorpaySignature = payload.razorpaySignature || payload.razorpay_signature;
+
+    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+      throw badRequest('razorpayOrderId, razorpayPaymentId, and razorpaySignature are required');
+    }
+
     const payment = await repos.payments.findOne({ providerOrderId: razorpayOrderId, userId });
     if (!payment) throw notFound('Payment');
+
+    if (payment.status === PAYMENT_STATUS.PAID) {
+      const subscription = payment.subscriptionId
+        ? await repos.subscriptions.findById(payment.subscriptionId)
+        : await this.currentSubscription(userId);
+      return {
+        payment: await repos.payments.findById(payment.id),
+        subscription
+      };
+    }
 
     if (this.razorpayConfigured()) {
       const expected = crypto
@@ -162,7 +292,14 @@ export class PaymentService {
 
     await repos.payments.update(payment.id, { providerPaymentId: razorpayPaymentId });
     const subscription = await this.activateSubscription(userId, payment.planId, payment.id);
-    return { payment: await repos.payments.findById(payment.id), subscription };
+    return {
+      payment: await repos.payments.findById(payment.id),
+      subscription: {
+        ...subscription,
+        plan: await this.getPlan(payment.planId),
+        daysRemaining: daysRemaining(subscription.endsAt)
+      }
+    };
   }
 
   async handleWebhook(rawBody, signature) {
@@ -205,20 +342,100 @@ export class PaymentService {
     });
   }
 
+  async loadMap(repo, ids) {
+    const unique = [...new Set((ids || []).filter(Boolean))];
+    const entries = await Promise.all(
+      unique.map(async (id) => {
+        try {
+          return [id, await repo.findById(id)];
+        } catch {
+          return [id, null];
+        }
+      })
+    );
+    return Object.fromEntries(entries);
+  }
+
+  async enrichSubscriptions(items) {
+    const users = await this.loadMap(repos.users, items.map((item) => item.userId));
+    const plans = await this.loadMap(repos.plans, items.map((item) => item.planId));
+    const now = new Date();
+
+    return items.map((item) => {
+      const expired = item.status === SUBSCRIPTION_STATUS.ACTIVE && new Date(item.endsAt) < now;
+      return {
+        ...item,
+        status: expired ? SUBSCRIPTION_STATUS.EXPIRED : item.status,
+        daysRemaining: item.status === SUBSCRIPTION_STATUS.ACTIVE && !expired
+          ? daysRemaining(item.endsAt, now)
+          : 0,
+        user: publicUser(users[item.userId]),
+        plan: this.presentPlan(plans[item.planId])
+      };
+    });
+  }
+
+  async enrichPayments(items) {
+    const users = await this.loadMap(repos.users, items.map((item) => item.userId));
+    const plans = await this.loadMap(repos.plans, items.map((item) => item.planId));
+    const subscriptions = await this.loadMap(
+      repos.subscriptions,
+      items.map((item) => item.subscriptionId)
+    );
+
+    return items.map((item) => ({
+      ...item,
+      user: publicUser(users[item.userId]),
+      plan: this.presentPlan(plans[item.planId]),
+      subscription: subscriptions[item.subscriptionId] || null
+    }));
+  }
+
   async adminSubscriptions(query) {
     const { page, limit } = getPaginationParams(query);
     const filters = {};
     if (query.status) filters.status = query.status;
+    if (query.userId) filters.userId = query.userId;
+    if (query.planId) filters.planId = query.planId;
     const { items, total } = await repos.subscriptions.findMany({ filters, page, limit });
-    return { items, total, page, limit };
+    return {
+      items: await this.enrichSubscriptions(items),
+      total,
+      page,
+      limit
+    };
   }
 
   async adminPayments(query) {
     const { page, limit } = getPaginationParams(query);
     const filters = {};
     if (query.status) filters.status = query.status;
+    if (query.userId) filters.userId = query.userId;
+    if (query.planId) filters.planId = query.planId;
     const { items, total } = await repos.payments.findMany({ filters, page, limit });
-    return { items, total, page, limit };
+    return {
+      items: await this.enrichPayments(items),
+      total,
+      page,
+      limit
+    };
+  }
+
+  async adminUserBilling(userId) {
+    const user = await repos.users.findById(userId);
+    if (!user) throw notFound('User');
+    const [subscription, payments, subscriptions] = await Promise.all([
+      this.currentSubscription(userId),
+      this.adminPayments({ userId, page: 1, limit: 50 }),
+      this.adminSubscriptions({ userId, page: 1, limit: 50 })
+    ]);
+    return {
+      user: publicUser(user),
+      hasActiveSubscription: Boolean(subscription),
+      subscription,
+      subscriptions: subscriptions.items,
+      payments: payments.items
+    };
   }
 }
 

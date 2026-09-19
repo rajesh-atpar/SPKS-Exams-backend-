@@ -654,11 +654,11 @@ ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO faqs (question, answer, category, display_order) VALUES
   ('How do I start a test?', 'Open Tests, choose a paper, and tap Start. Your timer begins immediately.', 'tests', 1),
-  ('How do subscriptions work?', 'Pick a plan, complete Razorpay payment, and premium content unlocks until the plan expires.', 'payments', 2),
+  ('How do subscriptions work?', 'After login, pick 1 month, 6 months, or 1 year, complete Razorpay payment, then open courses. When the plan expires you must buy again.', 'payments', 2),
   ('Can I reset my password?', 'Use Forgot Password on the login screen. We send a reset link to your email.', 'account', 3);
 
 INSERT INTO plans (name, price, currency, duration, features, course_access, is_active) VALUES
-  ('Free', 0, 'INR', 0, '["Limited tests", "Daily current affairs"]', '[]', true),
-  ('Monthly', 299, 'INR', 30, '["All courses", "Unlimited tests", "Premium notes"]', '["all"]', true),
-  ('Yearly', 2499, 'INR', 365, '["All courses", "Unlimited tests", "Premium notes", "Priority support"]', '["all"]', true)
+  ('Monthly', 1, 'INR', 30, '["All courses", "Unlimited tests", "Premium notes"]', '["all"]', true),
+  ('6 Months', 2, 'INR', 180, '["All courses", "Unlimited tests", "Premium notes"]', '["all"]', true),
+  ('Yearly', 3, 'INR', 365, '["All courses", "Unlimited tests", "Premium notes", "Priority support"]', '["all"]', true)
 ON CONFLICT (name) DO NOTHING;

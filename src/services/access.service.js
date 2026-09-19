@@ -13,9 +13,8 @@ export class AccessService {
 
   redact(item, hasAccess, extraFields = []) {
     if (!item) return item;
-    const isPremium = Boolean(item.isPremium);
-    const isLocked = isPremium && !hasAccess;
-    const next = { ...item, isPremium, isLocked };
+    const isLocked = !hasAccess;
+    const next = { ...item, isPremium: true, isLocked, requiresPlan: true };
     if (isLocked) {
       for (const field of [...PREMIUM_FIELDS, ...extraFields]) {
         if (Object.prototype.hasOwnProperty.call(next, field)) {
@@ -41,9 +40,13 @@ export class AccessService {
   }
 
   async assertUnlocked(user, item, label = 'This item') {
-    if (!item?.isPremium) return item;
     if (await this.hasPremium(user)) return item;
-    throw premiumRequired(`${label} requires an active subscription`);
+    throw premiumRequired(`${label} requires an active plan. Choose 1 month, 6 months, or 1 year.`);
+  }
+
+  async assertCourseAccess(user, label = 'This course') {
+    if (await this.hasPremium(user)) return true;
+    throw premiumRequired(`${label} requires an active plan. Choose 1 month (₹1), 6 months (₹2), or 1 year (₹3).`);
   }
 }
 

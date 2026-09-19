@@ -5,6 +5,7 @@ import { registerValidator } from '../validators/auth.validator.js';
 import { statusValidator, uuidParam } from '../validators/common.validator.js';
 import { userUpdateValidator } from '../validators/admin.validator.js';
 import * as userController from '../controllers/user.controller.js';
+import * as platformController from '../controllers/platform.controller.js';
 
 const router = Router();
 
@@ -13,6 +14,9 @@ router.use(authenticate, authorizeStaff);
 router.get('/', userController.adminListUsers);
 router.post('/', authorizeAdmin, registerValidator, validate, userController.adminCreateUser);
 router.get('/:userId/progress', uuidParam('userId'), validate, userController.adminUserProgress);
+router.get('/:userId/billing', uuidParam('userId'), validate, platformController.adminUserBilling);
+router.get('/:userId/subscriptions', uuidParam('userId'), validate, platformController.adminSubscriptions);
+router.get('/:userId/payments', uuidParam('userId'), validate, platformController.adminPayments);
 router.get('/:userId/continue-learning', uuidParam('userId'), validate, userController.adminUserContinueLearning);
 router.get('/:userId/activity', uuidParam('userId'), validate, userController.adminUserActivity);
 router.get('/:userId/course-progress', uuidParam('userId'), validate, userController.adminUserCourseProgress);

@@ -5,6 +5,7 @@ import { getPaginationParams } from '../utils/pagination.js';
 import { omit } from '../utils/case.js';
 import { conflict, notFound } from '../utils/errors.js';
 import fileService from './file.service.js';
+import paymentService from './payment.service.js';
 
 const publicUser = (user) => omit(user, ['passwordHash', 'password', 'hashedPassword']);
 
@@ -18,7 +19,7 @@ export class UserService {
     } catch {
       // Optional on the live schema.
     }
-    return publicUser(user);
+    return { ...publicUser(user), ...await paymentService.accessSnapshot(userId) };
   }
 
   async updateMe(userId, payload) {
@@ -112,13 +113,21 @@ export class UserService {
       searchFields: ['full_name', 'email', 'phone']
     });
 
-    return { items: items.map(publicUser), total, page, limit };
+    return {
+      items: await Promise.all(items.map(async (user) => ({
+        ...publicUser(user),
+        ...await paymentService.accessSnapshot(user.id)
+      }))),
+      total,
+      page,
+      limit
+    };
   }
 
   async getUser(userId) {
     const user = await repos.users.findById(userId);
     if (!user) throw notFound('User');
-    return publicUser(user);
+    return { ...publicUser(user), ...await paymentService.accessSnapshot(userId) };
   }
 
   async createStaff(payload) {

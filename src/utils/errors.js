@@ -21,7 +21,7 @@ export const unauthorized = (message = 'Invalid credentials') =>
 export const forbidden = (message = 'Insufficient permissions') =>
   new AppError(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.AUTHORIZATION_ERROR);
 
-export const premiumRequired = (message = 'This item requires an active subscription') =>
+export const premiumRequired = (message = 'This item requires an active plan') =>
   new AppError(message, HTTP_STATUS.FORBIDDEN, ERROR_CODES.PREMIUM_REQUIRED);
 
 export const badRequest = (message, errors = null) =>

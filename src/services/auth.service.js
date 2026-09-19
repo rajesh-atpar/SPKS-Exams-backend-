@@ -7,6 +7,7 @@ import { omit } from '../utils/case.js';
 import { badRequest, conflict, forbidden, notFound, unauthorized } from '../utils/errors.js';
 import logger from '../config/logger.js';
 import emailService from './email.service.js';
+import paymentService from './payment.service.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -67,10 +68,14 @@ export class AuthService {
   }
 
   async issueTokens(user) {
+    const access = STAFF_ROLES.includes(user.role)
+      ? { hasActiveSubscription: true, subscription: null }
+      : await paymentService.accessSnapshot(user.id);
     return {
-      user: publicUser(user),
+      user: { ...publicUser(user), ...access },
       accessToken: this.generateAccessToken(user),
-      refreshToken: await this.createRefreshToken(user.id)
+      refreshToken: await this.createRefreshToken(user.id),
+      ...access
     };
   }
 
@@ -175,7 +180,10 @@ export class AuthService {
   async me(userId) {
     const user = await hydrateUser(await repos.users.findById(userId));
     if (!user) throw notFound('User');
-    return publicUser(user);
+    const access = STAFF_ROLES.includes(user.role)
+      ? { hasActiveSubscription: true, subscription: null }
+      : await paymentService.accessSnapshot(userId);
+    return { ...publicUser(user), ...access };
   }
 
   async forgotPassword(email) {

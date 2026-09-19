@@ -7,6 +7,10 @@ import { HTTP_STATUS, LEGAL_TYPES } from '../config/constants.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { paginatedResponse, successResponse } from '../utils/response.js';
 
+export const paymentConfig = asyncHandler(async (_req, res) => {
+  return successResponse(res, 'Payment config fetched successfully', paymentService.checkoutConfig());
+});
+
 export const listPlans = asyncHandler(async (req, res) => {
   const data = await paymentService.listPlans(req.query);
   return paginatedResponse(res, 'Plans fetched successfully', data.items, data);
@@ -139,13 +143,23 @@ export const adminDeletePlan = asyncHandler(async (req, res) => {
 });
 
 export const adminSubscriptions = asyncHandler(async (req, res) => {
-  const data = await paymentService.adminSubscriptions(req.query);
+  const data = await paymentService.adminSubscriptions({
+    ...req.query,
+    userId: req.params.userId || req.query.userId
+  });
   return paginatedResponse(res, 'Subscriptions fetched successfully', data.items, data);
 });
 
 export const adminPayments = asyncHandler(async (req, res) => {
-  const data = await paymentService.adminPayments(req.query);
+  const data = await paymentService.adminPayments({
+    ...req.query,
+    userId: req.params.userId || req.query.userId
+  });
   return paginatedResponse(res, 'Payments fetched successfully', data.items, data);
+});
+
+export const adminUserBilling = asyncHandler(async (req, res) => {
+  return successResponse(res, 'User billing fetched successfully', await paymentService.adminUserBilling(req.params.userId));
 });
 
 export const adminTickets = asyncHandler(async (req, res) => {
