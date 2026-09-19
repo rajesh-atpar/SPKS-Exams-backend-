@@ -4,8 +4,17 @@ import { toSnake } from '../utils/case.js';
 import { BaseRepository } from './base.repository.js';
 import { readStore, writeStore } from './file-store.js';
 
-const missing = (error) => {
+const missingColumn = (error) => {
   const message = `${error?.message || ''} ${error?.cause?.message || ''}`;
+  const match = message.match(/Could not find the '([^']+)' column/i)
+    || message.match(/Missing database column '([^']+)'/i);
+  return match?.[1] || error?.missingColumn || null;
+};
+
+const missing = (error) => {
+  if (missingColumn(error)) return false;
+  const message = `${error?.message || ''} ${error?.cause?.message || ''}`;
+  if (/Missing database column/i.test(message)) return false;
   return (
     message.includes('schema cache')
     || message.includes('Could not find the table')
@@ -14,10 +23,13 @@ const missing = (error) => {
   );
 };
 
-const missingColumn = (error) => {
-  const message = `${error?.message || ''} ${error?.cause?.message || ''}`;
-  const match = message.match(/Could not find the '([^']+)' column/i);
-  return match?.[1] || null;
+const omitColumn = (payload, column) => {
+  const camel = column.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+  if (payload[camel] === undefined && payload[column] === undefined) return null;
+  const next = { ...payload };
+  delete next[camel];
+  delete next[column];
+  return next;
 };
 
 const isBcryptHash = (value) => typeof value === 'string' && /^\$2[aby]\$/.test(value);
@@ -479,8 +491,16 @@ export class MemoryFallbackRepository extends BaseRepository {
     try {
       return await super.create(payload);
     } catch (error) {
+      const retry = omitColumn(payload, missingColumn(error) || '');
+      if (retry) return this.create(retry);
       if (!missing(error)) throw error;
-      const row = { id: randomUUID(), ...payload, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      const row = {
+        id: randomUUID(),
+        isActive: payload.isActive !== false,
+        ...payload,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
       this.rows.push(row);
       this.persist();
       return row;
@@ -491,8 +511,9 @@ export class MemoryFallbackRepository extends BaseRepository {
     try {
       return await super.update(id, payload, select);
     } catch (error) {
-      const column = error?.missingColumn || missingColumn(error);
-      if (column || /pdf_url|pdf_path|Missing database column/i.test(`${error?.message || ''} ${error?.cause?.message || ''}`)) {
+      const retry = omitColumn(payload, missingColumn(error) || '');
+      if (retry) return this.update(id, retry, select);
+      if (missingColumn(error) || /pdf_url|pdf_path|Missing database column/i.test(`${error?.message || ''} ${error?.cause?.message || ''}`)) {
         throw error;
       }
       if (!missing(error)) throw error;

@@ -58,9 +58,7 @@ export class PaymentService {
   }
 
   isPaidPlan(plan) {
-    if (Number(plan?.price) <= 0) return false;
-    if (Number(plan?.duration) > 0) return true;
-    return Boolean(this.planEndsAt(plan) && !this.isPlanExpired(plan));
+    return Number(plan?.price) > 0;
   }
 
   presentPlan(plan) {
@@ -88,6 +86,8 @@ export class PaymentService {
     if (payload.features !== undefined) next.features = payload.features;
     if (payload.courseAccess !== undefined) next.courseAccess = payload.courseAccess;
     if (payload.isActive !== undefined) next.isActive = payload.isActive;
+    else if (!existing) next.isActive = true;
+    if (!existing && next.currency === undefined) next.currency = 'INR';
 
     const amount = payload.amount ?? payload.price;
     if (amount !== undefined && amount !== null) next.price = Number(amount);
@@ -136,15 +136,18 @@ export class PaymentService {
   }
 
   async listPlans(query, { admin = false } = {}) {
-    const { page, limit } = getPaginationParams(query);
+    const { page, limit } = getPaginationParams({
+      ...query,
+      limit: query.limit || (admin ? 100 : query.limit)
+    });
     const { items, total } = await repos.plans.findMany({
       filters: admin ? {} : { isActive: true },
       page,
       limit,
       search: query.search,
       searchFields: ['name'],
-      orderBy: 'duration',
-      order: 'asc'
+      orderBy: 'created_at',
+      order: 'desc'
     });
     const visible = admin
       ? items
