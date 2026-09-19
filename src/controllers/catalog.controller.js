@@ -163,6 +163,49 @@ export const adminDeleteGroup = asyncHandler(async (req, res) => {
   return successResponse(res, 'Group deleted', await catalogService.deleteGroup(req.params.groupId));
 });
 
+const adminListGroupContent = (contentType, message) => asyncHandler(async (req, res) => {
+  const data = await contentService.list(req.query, {
+    groupId: req.params.groupId,
+    contentType
+  }, { admin: true });
+  return paginatedResponse(res, message, data.items, data);
+});
+
+const adminCreateGroupContent = (contentType, message) => asyncHandler(async (req, res) => {
+  const group = await catalogService.getGroup(req.params.groupId);
+  const item = await contentService.create({
+    ...req.body,
+    groupId: group.id,
+    courseId: req.body.courseId || group.courseId || null,
+    contentType,
+    isPublished: req.body.isPublished !== false
+  });
+  return successResponse(res, message, contentService.withContentView(item), HTTP_STATUS.CREATED);
+});
+
+export const adminGroupNotes = adminListGroupContent('note', 'Notes fetched successfully');
+export const adminGroupBooks = adminListGroupContent('book', 'Books fetched successfully');
+export const adminGroupOutsideSources = adminListGroupContent('outside-source', 'Outside sources fetched successfully');
+export const adminCreateGroupNote = adminCreateGroupContent('note', 'Note created successfully');
+export const adminCreateGroupBook = adminCreateGroupContent('book', 'Book created successfully');
+export const adminCreateGroupOutsideSource = adminCreateGroupContent('outside-source', 'Outside source created successfully');
+
+export const adminGroupVideos = asyncHandler(async (req, res) => {
+  const data = await mediaService.listVideos({ ...req.query, groupId: req.params.groupId }, { admin: true });
+  return paginatedResponse(res, 'Videos fetched successfully', data.items, data);
+});
+
+export const adminCreateGroupVideo = asyncHandler(async (req, res) => {
+  const group = await catalogService.getGroup(req.params.groupId);
+  const video = await mediaService.createVideo({
+    ...req.body,
+    groupId: group.id,
+    courseId: req.body.courseId || group.courseId || null,
+    isPublished: req.body.isPublished !== false
+  });
+  return successResponse(res, 'Video created successfully', video, HTTP_STATUS.CREATED);
+});
+
 export const adminListClasses = asyncHandler(async (req, res) => {
   const data = await catalogService.listClasses(req.query, { groupId: req.query.groupId });
   return paginatedResponse(res, 'Classes fetched successfully', data.items, data);

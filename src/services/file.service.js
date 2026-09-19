@@ -90,7 +90,7 @@ export class FileService {
 
   async uploadFile(file, path) {
     if (!file?.buffer?.length) {
-      throw this.fail('PDF file is missing or empty');
+      throw this.fail('Image file is missing or empty');
     }
 
     await this.ensureBucket();

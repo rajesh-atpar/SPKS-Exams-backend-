@@ -78,6 +78,7 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return callback(null, true);
     if (!allowedOrigins.length && process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
