@@ -1,7 +1,6 @@
 import { Readable } from 'stream';
 import { supabaseAdmin } from '../services/supabaseClient.js';
-import { FILE_UPLOAD } from '../config/constants.js';
-import { ERROR_CODES, HTTP_STATUS } from '../config/constants.js';
+import { FILE_UPLOAD, ERROR_CODES, HTTP_STATUS } from '../config/constants.js';
 import logger from '../config/logger.js';
 
 const pdfNotFound = () => {
@@ -16,28 +15,110 @@ const safePdfName = (filename = 'document.pdf') => {
   return base.toLowerCase().endsWith('.pdf') ? base : `${base}.pdf`;
 };
 
-export class FileService {
-  async uploadFile(file, path) {
-    const fileName = `${Date.now()}-${file.originalname}`;
-    const filePath = `${path}/${fileName}`;
+const errorText = (error) => String(error?.message || error?.error || error?.statusCode || '');
 
-    const { data, error } = await supabaseAdmin.storage
-      .from('uploads')
-      .upload(filePath, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false
+export class FileService {
+  constructor() {
+    this.bucket = FILE_UPLOAD.BUCKET;
+    this.bucketReady = false;
+  }
+
+  fail(message, statusCode = HTTP_STATUS.BAD_REQUEST) {
+    const err = new Error(message);
+    err.code = ERROR_CODES.INTERNAL_ERROR;
+    err.statusCode = statusCode;
+    return err;
+  }
+
+  friendly(error) {
+    const text = errorText(error);
+    if (/bucket not found|resource was not found/i.test(text)) {
+      return `Storage bucket "${this.bucket}" is missing. In Supabase go to Storage and create a public bucket named "${this.bucket}", or run database/migrations/2026-09-19-uploads-bucket.sql.`;
+    }
+    if (/unauthorized|not allowed|row-level security|permission|jwt|invalid api key/i.test(text)) {
+      return 'Storage upload is not authorized. Set SUPABASE_SERVICE_ROLE_KEY to the service_role key (not the anon key).';
+    }
+    if (/payload|too large|maximum|exceeded/i.test(text)) {
+      return `PDF is too large. Maximum size is ${Math.round(FILE_UPLOAD.MAX_SIZE / 1024 / 1024)}MB.`;
+    }
+    if (/mime|content type|not supported/i.test(text)) {
+      return 'This file type is not allowed. Upload a PDF.';
+    }
+    return text ? `File upload failed: ${text}` : 'File upload failed';
+  }
+
+  safeObjectName(originalname) {
+    const original = String(originalname || 'document.pdf');
+    const extMatch = original.toLowerCase().match(/\.[a-z0-9]{1,8}$/);
+    const ext = extMatch ? extMatch[0] : '.pdf';
+    const base = original
+      .slice(0, original.length - ext.length)
+      .normalize('NFKD')
+      .replace(/[^\w.-]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 60) || 'file';
+    return `${Date.now()}-${base}${ext}`;
+  }
+
+  async ensureBucket(force = false) {
+    if (this.bucketReady && !force) return;
+
+    const { data: buckets, error: listError } = await supabaseAdmin.storage.listBuckets();
+    if (listError) {
+      logger.error('Storage listBuckets error:', listError);
+      return;
+    }
+
+    const exists = (buckets || []).some((bucket) => bucket.id === this.bucket || bucket.name === this.bucket);
+    if (!exists) {
+      const { error: createError } = await supabaseAdmin.storage.createBucket(this.bucket, {
+        public: true,
+        fileSizeLimit: FILE_UPLOAD.MAX_SIZE,
+        allowedMimeTypes: [...FILE_UPLOAD.ALLOWED_IMAGE_TYPES, ...FILE_UPLOAD.ALLOWED_DOCUMENT_TYPES]
       });
+      if (createError && !/exists|duplicate/i.test(errorText(createError))) {
+        logger.error('Storage createBucket error:', createError);
+        throw this.fail(this.friendly(createError));
+      }
+      logger.info(`Created storage bucket: ${this.bucket}`);
+    } else {
+      await supabaseAdmin.storage.updateBucket(this.bucket, { public: true }).catch(() => {});
+    }
+
+    this.bucketReady = true;
+  }
+
+  async uploadFile(file, path) {
+    if (!file?.buffer?.length) {
+      throw this.fail('PDF file is missing or empty');
+    }
+
+    await this.ensureBucket();
+
+    const folder = String(path || FILE_UPLOAD.CONTENT_PATH).replace(/^\/+|\/+$/g, '');
+    const filePath = `${folder}/${this.safeObjectName(file.originalname)}`;
+    const body = Buffer.isBuffer(file.buffer) ? file.buffer : Buffer.from(file.buffer);
+    const options = {
+      contentType: file.mimetype || 'application/pdf',
+      cacheControl: '3600',
+      upsert: true
+    };
+
+    let { error } = await supabaseAdmin.storage.from(this.bucket).upload(filePath, body, options);
+
+    if (error && /bucket not found/i.test(errorText(error))) {
+      this.bucketReady = false;
+      await this.ensureBucket(true);
+      ({ error } = await supabaseAdmin.storage.from(this.bucket).upload(filePath, body, options));
+    }
 
     if (error) {
       logger.error('File upload error:', error);
-      const err = new Error('File upload failed');
-      err.code = ERROR_CODES.INTERNAL_ERROR;
-      err.statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
-      throw err;
+      throw this.fail(this.friendly(error));
     }
 
     const { data: { publicUrl } } = supabaseAdmin.storage
-      .from('uploads')
+      .from(this.bucket)
       .getPublicUrl(filePath);
 
     logger.info(`File uploaded: ${filePath}`);
@@ -70,32 +151,25 @@ export class FileService {
 
   async deleteFile(filePath) {
     const { error } = await supabaseAdmin.storage
-      .from('uploads')
+      .from(this.bucket)
       .remove([filePath]);
 
     if (error) {
       logger.error('File deletion error:', error);
-      const err = new Error('File deletion failed');
-      err.code = ERROR_CODES.INTERNAL_ERROR;
-      err.statusCode = HTTP_STATUS.INTERNAL_SERVER_ERROR;
-      throw err;
+      throw this.fail('File deletion failed', HTTP_STATUS.INTERNAL_SERVER_ERROR);
     }
 
     logger.info(`File deleted: ${filePath}`);
-
     return { message: 'File deleted successfully' };
   }
 
   async getFileUrl(filePath) {
     const { data, error } = supabaseAdmin.storage
-      .from('uploads')
+      .from(this.bucket)
       .getPublicUrl(filePath);
 
     if (error) {
-      const err = new Error('File not found');
-      err.code = ERROR_CODES.NOT_FOUND_ERROR;
-      err.statusCode = HTTP_STATUS.NOT_FOUND;
-      throw err;
+      throw pdfNotFound();
     }
 
     return data.publicUrl;
@@ -106,8 +180,8 @@ export class FileService {
     try {
       const parsed = new URL(url);
       const markers = [
-        '/storage/v1/object/public/uploads/',
-        '/storage/v1/object/sign/uploads/'
+        `/storage/v1/object/public/${this.bucket}/`,
+        `/storage/v1/object/sign/${this.bucket}/`
       ];
       for (const marker of markers) {
         const index = parsed.pathname.indexOf(marker);
@@ -148,7 +222,7 @@ export class FileService {
     const path = filePath || this.extractUploadsPath(fileUrl);
     if (path) {
       const { data, error } = await supabaseAdmin.storage
-        .from('uploads')
+        .from(this.bucket)
         .download(path);
 
       if (!error && data) {

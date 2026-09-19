@@ -14,7 +14,7 @@ Express + Supabase backend for the SPKS mobile app and admin panel.
 ## Setup
 
 1. Copy `.env.example` to `.env.local` and fill in Supabase, JWT, and optional Razorpay keys.
- 2. Run `database/schema.sql` in the Supabase SQL editor for a new database. For an existing database, run `database/migrations/2026-09-17-missing-features.sql` and `database/migrations/2026-09-18-lesson-pdfs.sql` instead.
+ 2. Run `database/schema.sql` in the Supabase SQL editor for a new database. For an existing database, run `database/migrations/2026-09-17-missing-features.sql`, `database/migrations/2026-09-18-lesson-pdfs.sql`, and `database/migrations/2026-09-19-uploads-bucket.sql` instead. The last file creates the public `uploads` Storage bucket required for lesson PDFs.
 3. Install and start:
 
 ```bash

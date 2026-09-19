@@ -107,7 +107,11 @@ export const uploadContentFile = uploadSingle('file');
 export const uploadImage = uploadSingle('image');
 
 const pdfFilter = (req, file, cb) => {
-  if (FILE_UPLOAD.ALLOWED_DOCUMENT_TYPES.includes(file.mimetype)) {
+  const mime = String(file.mimetype || '').toLowerCase();
+  const name = String(file.originalname || '').toLowerCase();
+  const isPdf = FILE_UPLOAD.ALLOWED_DOCUMENT_TYPES.includes(mime)
+    || ((mime === 'application/octet-stream' || !mime) && name.endsWith('.pdf'));
+  if (isPdf) {
     cb(null, true);
     return;
   }

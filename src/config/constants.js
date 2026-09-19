@@ -116,6 +116,7 @@ export const FILE_UPLOAD = {
   MAX_SIZE: Number(process.env.MAX_FILE_SIZE) || 25 * 1024 * 1024,
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'],
   ALLOWED_DOCUMENT_TYPES: ['application/pdf'],
+  BUCKET: process.env.SUPABASE_STORAGE_BUCKET || 'uploads',
   PROFILE_IMAGE_PATH: 'profile-images',
   CONTENT_PATH: 'content',
   LESSON_PDF_PATH: 'lessons',
