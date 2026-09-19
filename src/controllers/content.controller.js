@@ -103,7 +103,13 @@ export const adminUploadLessonPdf = asyncHandler(async (req, res) => {
 
 export const adminReplaceLessonPdf = asyncHandler(async (req, res) => {
   if (!req.file) throw badRequest('PDF file is required');
-  return successResponse(res, 'Lesson PDF updated successfully', await contentService.replaceLessonPdf(req.params.lessonId, req.file));
+  const lesson = await contentService.replaceLessonPdf(req.params.lessonId, req.file);
+  if (!lesson?.pdfUrl && !lesson?.pdfViewUrl) {
+    throw badRequest(
+      "That upload was not a real save. data is missing pdfUrl. Run ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_url TEXT; ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_path TEXT; NOTIFY pgrst, 'reload schema'; then upload again."
+    );
+  }
+  return successResponse(res, 'Lesson PDF updated successfully', lesson);
 });
 
 export const adminListChapters = asyncHandler(async (req, res) => {

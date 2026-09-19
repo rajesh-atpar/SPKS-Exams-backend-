@@ -1,5 +1,10 @@
 -- Create the public Storage bucket used for lesson PDFs, notes, and images.
--- Run this in the Supabase SQL editor if admin PDF upload returns "File upload failed".
+-- Also adds lessons.pdf_url / pdf_path and reloads PostgREST.
+-- Safe to re-run.
+
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_url TEXT;
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_path TEXT;
+NOTIFY pgrst, 'reload schema';
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
@@ -57,3 +62,8 @@ END $$;
 SELECT id, name, public, file_size_limit
 FROM storage.buckets
 WHERE id = 'uploads';
+
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'lessons' AND column_name IN ('pdf_url', 'pdf_path')
+ORDER BY column_name;

@@ -11,22 +11,30 @@ export class BaseRepository {
     const nested = error?.cause || error;
     const causeCode = nested?.code || nested?.cause?.code;
     const causeMessage = nested?.cause?.message || nested?.message || error?.message;
+    const combined = `${error?.message || ''} ${causeMessage || ''}`;
     const isNetworkFailure =
       String(error?.message || '').includes('fetch failed')
       || ['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'UND_ERR_CONNECT_TIMEOUT'].includes(causeCode);
 
+    const missingColumn = combined.match(/Could not find the '([^']+)' column/i)?.[1];
     const isMissingTable =
-      String(error?.message || '').includes('schema cache')
-      || String(error?.code || '') === 'PGRST205';
+      !missingColumn
+      && (
+        String(error?.message || '').includes('schema cache')
+        || String(error?.code || '') === 'PGRST205'
+      );
 
     const err = new Error(
       isNetworkFailure
         ? `Database unreachable${causeCode ? ` (${causeCode})` : ''}: ${causeMessage || 'fetch failed'}`
-        : isMissingTable
-          ? `Missing database table '${this.table}'. Run database/schema.sql in the Supabase SQL editor.`
-          : (error.message || 'Database error')
+        : missingColumn
+          ? `Missing database column '${missingColumn}' on '${this.table}'. Run database/migrations/2026-09-18-lesson-pdfs.sql, then NOTIFY pgrst, 'reload schema';`
+          : isMissingTable
+            ? `Missing database table '${this.table}'. Run database/schema.sql in the Supabase SQL editor.`
+            : (error.message || 'Database error')
     );
     err.cause = error;
+    err.missingColumn = missingColumn || null;
     err.statusCode = isNetworkFailure
       ? HTTP_STATUS.SERVICE_UNAVAILABLE
       : HTTP_STATUS.BAD_REQUEST;

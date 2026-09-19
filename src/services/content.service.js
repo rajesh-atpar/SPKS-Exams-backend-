@@ -1,7 +1,7 @@
 import { repos } from '../repositories/repos.js';
 import { FILE_UPLOAD } from '../config/constants.js';
 import { getPaginationParams } from '../utils/pagination.js';
-import { notFound } from '../utils/errors.js';
+import { badRequest, notFound } from '../utils/errors.js';
 import fileService from './file.service.js';
 import accessService from './access.service.js';
 import progressService from './progress.service.js';
@@ -205,17 +205,44 @@ export class ContentService {
     return fileService.uploadFile(file, FILE_UPLOAD.LESSON_PDF_PATH);
   }
 
+  lessonPdfDbError() {
+    return badRequest(
+      "That upload was not a real save. The PDF reached storage, but lessons.pdf_url was not written. In the Supabase SQL editor run: ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_url TEXT; ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_path TEXT; NOTIFY pgrst, 'reload schema'; then upload the PDF again. A working response has data.pdfUrl and data.pdfViewUrl."
+    );
+  }
+
   async replaceLessonPdf(lessonId, file) {
     const lesson = await this.getLesson(lessonId, { admin: true });
     const uploaded = await this.uploadLessonPdf(file);
-    const updated = await repos.lessons.update(lessonId, {
-      pdfUrl: uploaded.url,
-      pdfPath: uploaded.path
-    });
+    let updated;
+    try {
+      updated = await repos.lessons.update(lessonId, {
+        pdfUrl: uploaded.url,
+        pdfPath: uploaded.path
+      });
+    } catch (error) {
+      const message = `${error?.message || ''} ${error?.cause?.message || ''} ${error?.missingColumn || ''}`;
+      if (/pdf_url|pdf_path|schema cache|Missing database column/i.test(message)) {
+        throw this.lessonPdfDbError();
+      }
+      throw error;
+    }
+
+    const saved = updated?.id ? updated : await repos.lessons.findById(lessonId);
+    if (!saved?.id || !(saved.pdfUrl || saved.pdfPath || uploaded.url)) {
+      throw this.lessonPdfDbError();
+    }
+    if (!saved.pdfUrl && uploaded.url) {
+      throw this.lessonPdfDbError();
+    }
     if (lesson.pdfPath && lesson.pdfPath !== uploaded.path) {
       await fileService.deleteQuietly(lesson.pdfPath);
     }
-    return this.presentLesson(updated, { admin: true });
+    return this.presentLesson({
+      ...saved,
+      pdfUrl: saved.pdfUrl || uploaded.url,
+      pdfPath: saved.pdfPath || uploaded.path
+    }, { admin: true });
   }
 
   async viewLessonPdf(lessonId, res) {

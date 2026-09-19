@@ -491,6 +491,10 @@ export class MemoryFallbackRepository extends BaseRepository {
     try {
       return await super.update(id, payload, select);
     } catch (error) {
+      const column = error?.missingColumn || missingColumn(error);
+      if (column || /pdf_url|pdf_path|Missing database column/i.test(`${error?.message || ''} ${error?.cause?.message || ''}`)) {
+        throw error;
+      }
       if (!missing(error)) throw error;
       const row = this.rows.find((item) => item.id === id);
       if (!row) return null;

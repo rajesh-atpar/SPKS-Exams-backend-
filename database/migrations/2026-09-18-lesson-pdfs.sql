@@ -4,3 +4,6 @@
 
 ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_url TEXT;
 ALTER TABLE lessons ADD COLUMN IF NOT EXISTS pdf_path TEXT;
+
+-- Reload PostgREST so UPDATE ... pdf_url works immediately.
+NOTIFY pgrst, 'reload schema';
