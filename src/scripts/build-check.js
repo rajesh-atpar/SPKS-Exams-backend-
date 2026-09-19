@@ -68,6 +68,8 @@ const expected = {
     'GET /lessons/:lessonId',
     'POST /lessons/upload',
     'POST /lessons/:lessonId/pdf',
+    'PUT /lessons/:lessonId/pdf',
+    'POST /lessons/:lessonId/upload',
     'POST /questions/upload',
     'GET /results',
     'GET /tests/:testId/results',

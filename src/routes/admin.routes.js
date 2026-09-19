@@ -84,10 +84,13 @@ router.patch('/chapters/:chapterId', uuidParam('chapterId'), chapterUpdateValida
 router.delete('/chapters/:chapterId', uuidParam('chapterId'), validate, contentController.adminDeleteChapter);
 
 router.post('/lessons/upload', uploadLessonPdf, contentController.adminUploadLessonPdf);
+router.post('/lessons/:lessonId/pdf', uploadLessonPdf, contentController.adminReplaceLessonPdf);
+router.put('/lessons/:lessonId/pdf', uploadLessonPdf, contentController.adminReplaceLessonPdf);
+router.patch('/lessons/:lessonId/pdf', uploadLessonPdf, contentController.adminReplaceLessonPdf);
+router.post('/lessons/:lessonId/upload', uploadLessonPdf, contentController.adminReplaceLessonPdf);
 router.post('/lessons', lessonBodyValidator, validate, contentController.adminCreateLesson);
 router.get('/lessons', contentController.adminListLessons);
 router.get('/lessons/:lessonId', uuidParam('lessonId'), validate, contentController.adminGetLesson);
-router.post('/lessons/:lessonId/pdf', uuidParam('lessonId'), validate, uploadLessonPdf, contentController.adminReplaceLessonPdf);
 router.patch('/lessons/:lessonId', uuidParam('lessonId'), lessonUpdateValidator, validate, contentController.adminUpdateLesson);
 router.delete('/lessons/:lessonId', uuidParam('lessonId'), validate, contentController.adminDeleteLesson);
 

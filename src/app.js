@@ -14,6 +14,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import adminAuthRoutes from './routes/adminAuth.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import adminLessonPdfRoutes from './routes/adminLessonPdf.routes.js';
 import adminUserRoutes from './routes/adminUser.routes.js';
 import userRoutes from './routes/user.routes.js';
 import courseRoutes from './routes/course.routes.js';
@@ -156,6 +157,7 @@ app.use('/api/notifications', notificationRoutes);
 
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/users', adminUserRoutes);
+app.use(adminLessonPdfRoutes);
 app.use('/api/admin', adminRoutes);
 
 swaggerSetup(app);

@@ -123,7 +123,7 @@ const pdfUpload = multer({
 });
 
 export const uploadLessonPdf = (req, res, next) => {
-  pdfUpload.single('file')(req, res, (err) => {
+  pdfUpload.any()(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -145,6 +145,14 @@ export const uploadLessonPdf = (req, res, next) => {
         code: ERROR_CODES.VALIDATION_ERROR
       });
     }
+
+    const files = Array.isArray(req.files) ? req.files : [];
+    req.file = req.file
+      || files.find((file) => file.fieldname === 'file')
+      || files.find((file) => file.fieldname === 'pdf')
+      || files.find((file) => file.fieldname === 'lessonPdf')
+      || files[0]
+      || null;
     next();
   });
 };
