@@ -289,24 +289,72 @@ export const questionUpdateValidator = [
   optionalInt('questionNumber')
 ];
 
+const optionalPlanDate = (field) =>
+  body(field)
+    .optional({ values: 'falsy' })
+    .isISO8601()
+    .withMessage(`${field} must be an ISO date`);
+
+const planDateFields = [
+  optionalPlanDate('startDate'),
+  optionalPlanDate('endDate'),
+  optionalPlanDate('startsAt'),
+  optionalPlanDate('endsAt'),
+  body().custom((value) => {
+    const start = value.startDate || value.startsAt;
+    const end = value.endDate || value.endsAt;
+    if (start && end && new Date(end) <= new Date(start)) {
+      throw new Error('endDate must be after startDate');
+    }
+    return true;
+  })
+];
+
+const hasPlanAmount = (value) => value !== undefined && value !== null && value !== '';
+
+export const aliasPlanAmount = (req, _res, next) => {
+  if (!req.body || typeof req.body !== 'object') return next();
+  if (!hasPlanAmount(req.body.price) && hasPlanAmount(req.body.amount)) {
+    req.body.price = req.body.amount;
+  }
+  if (req.body.startDate == null && req.body.startsAt != null) req.body.startDate = req.body.startsAt;
+  if (req.body.endDate == null && req.body.endsAt != null) req.body.endDate = req.body.endsAt;
+  next();
+};
+
 export const planBodyValidator = [
   body('name').trim().isLength({ min: 1, max: 255 }).withMessage('Name is required'),
-  body('price').isFloat({ min: 0 }).withMessage('Price is required').toFloat(),
+  body('amount').optional({ values: 'falsy' }).isFloat({ min: 0 }).withMessage('Amount must be 0 or more').toFloat(),
+  body('price')
+    .customSanitizer((value, { req }) => (hasPlanAmount(value) ? value : req.body?.amount))
+    .exists({ values: 'falsy' })
+    .withMessage('Amount is required')
+    .isFloat({ min: 0 })
+    .withMessage('Amount must be 0 or more')
+    .toFloat(),
   body('currency').optional().isString(),
   optionalInt('duration'),
   body('features').optional().isArray(),
   body('courseAccess').optional().isArray(),
-  optionalBoolean('isActive')
+  optionalBoolean('isActive'),
+  ...planDateFields
 ];
 
 export const planUpdateValidator = [
   body('name').optional().trim().isLength({ min: 1, max: 255 }),
-  body('price').optional().isFloat({ min: 0 }).toFloat(),
+  body('amount').optional({ values: 'falsy' }).isFloat({ min: 0 }).toFloat(),
+  body('price')
+    .optional({ values: 'falsy' })
+    .customSanitizer((value, { req }) => (hasPlanAmount(value) ? value : req.body?.amount))
+    .isFloat({ min: 0 })
+    .withMessage('Amount must be 0 or more')
+    .toFloat(),
   body('currency').optional().isString(),
   optionalInt('duration'),
   body('features').optional().isArray(),
   body('courseAccess').optional().isArray(),
-  optionalBoolean('isActive')
+  optionalBoolean('isActive'),
+  ...planDateFields
 ];
 
 export const ticketStatusBodyValidator = [

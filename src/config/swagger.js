@@ -108,6 +108,22 @@ const options = {
             state: { type: 'string' }
           }
         },
+        PlanInput: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name: { type: 'string', example: 'Monthly' },
+            amount: { type: 'number', example: 1, description: 'Plan price. Alias: price' },
+            price: { type: 'number', example: 1 },
+            currency: { type: 'string', example: 'INR' },
+            duration: { type: 'integer', example: 30, description: 'Access days. Auto-set from startDate/endDate when both are sent.' },
+            startDate: { type: 'string', format: 'date-time', nullable: true, description: 'Plan start. Alias: startsAt' },
+            endDate: { type: 'string', format: 'date-time', nullable: true, description: 'Plan end. Alias: endsAt' },
+            features: { type: 'array', items: { type: 'string' } },
+            courseAccess: { type: 'array', items: { type: 'string' } },
+            isActive: { type: 'boolean' }
+          }
+        },
         LoginInput: {
           type: 'object',
           required: ['email', 'password'],
@@ -406,10 +422,11 @@ const options = {
       '/api/admin/analytics/revenue': { get: { tags: ['Admin'], security: bearer, summary: 'Revenue analytics', responses: ok() } },
       '/api/admin/plans': {
         get: { tags: ['Admin'], security: bearer, summary: 'List plans', responses: ok() },
-        post: { tags: ['Admin'], security: bearer, summary: 'Create plan', responses: created }
+        post: { tags: ['Admin'], security: bearer, summary: 'Create plan with amount and dates', requestBody: jsonBody({ $ref: '#/components/schemas/PlanInput' }), responses: created }
       },
       '/api/admin/plans/{planId}': {
-        patch: { tags: ['Admin'], security: bearer, summary: 'Update plan', parameters: [uuidParam('planId')], responses: ok() },
+        get: { tags: ['Admin'], security: bearer, summary: 'Get plan', parameters: [uuidParam('planId')], responses: ok() },
+        patch: { tags: ['Admin'], security: bearer, summary: 'Update plan amount and dates', parameters: [uuidParam('planId')], requestBody: jsonBody({ $ref: '#/components/schemas/PlanInput' }), responses: ok() },
         delete: { tags: ['Admin'], security: bearer, summary: 'Delete plan', parameters: [uuidParam('planId')], responses: ok() }
       },
       '/api/admin/subscriptions': { get: { tags: ['Admin'], security: bearer, summary: 'List all subscriptions with user and plan details', responses: ok() } },

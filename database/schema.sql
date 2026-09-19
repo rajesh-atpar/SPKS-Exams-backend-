@@ -414,6 +414,8 @@ CREATE TABLE IF NOT EXISTS plans (
   price DECIMAL(10,2) NOT NULL DEFAULT 0,
   currency VARCHAR(10) DEFAULT 'INR',
   duration INTEGER NOT NULL DEFAULT 30,
+  starts_at TIMESTAMPTZ,
+  ends_at TIMESTAMPTZ,
   features JSONB DEFAULT '[]',
   course_access JSONB DEFAULT '[]',
   is_active BOOLEAN DEFAULT true,

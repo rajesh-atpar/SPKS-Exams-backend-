@@ -23,6 +23,7 @@ import {
   lessonBodyValidator,
   lessonUpdateValidator,
   notificationBodyValidator,
+  aliasPlanAmount,
   planBodyValidator,
   planUpdateValidator,
   questionBodyValidator,
@@ -126,9 +127,10 @@ router.get('/analytics/courses', platformController.analyticsCourses);
 router.get('/analytics/tests', platformController.analyticsTests);
 router.get('/analytics/revenue', platformController.analyticsRevenue);
 
-router.post('/plans', authorizeAdmin, planBodyValidator, validate, platformController.adminCreatePlan);
+router.post('/plans', authorizeAdmin, aliasPlanAmount, planBodyValidator, validate, platformController.adminCreatePlan);
 router.get('/plans', platformController.adminListPlans);
-router.patch('/plans/:planId', authorizeAdmin, uuidParam('planId'), planUpdateValidator, validate, platformController.adminUpdatePlan);
+router.get('/plans/:planId', uuidParam('planId'), validate, platformController.adminGetPlan);
+router.patch('/plans/:planId', authorizeAdmin, uuidParam('planId'), aliasPlanAmount, planUpdateValidator, validate, platformController.adminUpdatePlan);
 router.delete('/plans/:planId', authorizeAdmin, uuidParam('planId'), validate, platformController.adminDeletePlan);
 router.get('/subscriptions', platformController.adminSubscriptions);
 router.get('/payments', platformController.adminPayments);

@@ -32,17 +32,88 @@ export class PaymentService {
     return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
   }
 
+  toIsoDate(value) {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) throw badRequest('Invalid plan date');
+    return date.toISOString();
+  }
+
+  daysBetween(start, end) {
+    return Math.max(1, Math.ceil((new Date(end) - new Date(start)) / 86400000));
+  }
+
+  planStartsAt(plan) {
+    return plan?.startsAt || plan?.startDate || null;
+  }
+
+  planEndsAt(plan) {
+    return plan?.endsAt || plan?.endDate || null;
+  }
+
+  isPlanExpired(plan, from = new Date()) {
+    const endsAt = this.planEndsAt(plan);
+    return Boolean(endsAt && new Date(endsAt) <= from);
+  }
+
   isPaidPlan(plan) {
-    return Number(plan?.price) > 0 && Number(plan?.duration) > 0;
+    if (Number(plan?.price) <= 0) return false;
+    if (Number(plan?.duration) > 0) return true;
+    return Boolean(this.planEndsAt(plan) && !this.isPlanExpired(plan));
   }
 
   presentPlan(plan) {
     if (!plan) return plan;
+    const price = Number(plan.price || 0);
+    const startsAt = this.planStartsAt(plan);
+    const endsAt = this.planEndsAt(plan);
     return {
       ...plan,
+      price,
+      amount: price,
+      startsAt: startsAt || null,
+      endsAt: endsAt || null,
+      startDate: startsAt || null,
+      endDate: endsAt || null,
       interval: planInterval(plan.duration),
-      amountPaise: Math.round(Number(plan.price || 0) * 100)
+      amountPaise: Math.round(price * 100)
     };
+  }
+
+  normalizePlanPayload(payload = {}, existing = null) {
+    const next = {};
+    if (payload.name !== undefined) next.name = payload.name;
+    if (payload.currency !== undefined) next.currency = payload.currency;
+    if (payload.features !== undefined) next.features = payload.features;
+    if (payload.courseAccess !== undefined) next.courseAccess = payload.courseAccess;
+    if (payload.isActive !== undefined) next.isActive = payload.isActive;
+
+    const amount = payload.amount ?? payload.price;
+    if (amount !== undefined && amount !== null) next.price = Number(amount);
+
+    if (payload.startsAt !== undefined || payload.startDate !== undefined) {
+      next.startsAt = this.toIsoDate(payload.startsAt ?? payload.startDate);
+    }
+    if (payload.endsAt !== undefined || payload.endDate !== undefined) {
+      next.endsAt = this.toIsoDate(payload.endsAt ?? payload.endDate);
+    }
+
+    const startsAt = next.startsAt !== undefined ? next.startsAt : existing?.startsAt;
+    const endsAt = next.endsAt !== undefined ? next.endsAt : existing?.endsAt;
+    const datesTouched = payload.startsAt !== undefined
+      || payload.startDate !== undefined
+      || payload.endsAt !== undefined
+      || payload.endDate !== undefined;
+    if (payload.duration !== undefined) {
+      next.duration = Number(payload.duration);
+    } else if (datesTouched && startsAt && endsAt) {
+      next.duration = this.daysBetween(startsAt, endsAt);
+    } else if (!existing) {
+      next.duration = 30;
+    }
+
+    return next;
   }
 
   checkoutConfig() {
@@ -75,7 +146,9 @@ export class PaymentService {
       orderBy: 'duration',
       order: 'asc'
     });
-    const visible = admin ? items : items.filter((plan) => this.isPaidPlan(plan));
+    const visible = admin
+      ? items
+      : items.filter((plan) => this.isPaidPlan(plan) && !this.isPlanExpired(plan));
     return {
       items: visible.map((plan) => this.presentPlan(plan)),
       total: admin ? total : visible.length,
@@ -91,16 +164,20 @@ export class PaymentService {
   }
 
   createPlan(payload) {
-    return repos.plans.create(payload).then((plan) => this.presentPlan(plan));
+    return repos.plans.create(this.normalizePlanPayload(payload)).then((plan) => this.presentPlan(plan));
   }
 
   async updatePlan(planId, payload) {
-    await this.getPlan(planId);
-    return this.presentPlan(await repos.plans.update(planId, payload));
+    const existing = await this.getPlan(planId);
+    return this.presentPlan(await repos.plans.update(planId, this.normalizePlanPayload(payload, existing)));
   }
 
   async deletePlan(planId) {
     await this.getPlan(planId);
+    const { total } = await repos.subscriptions.findMany({ filters: { planId }, limit: 1 });
+    if (total > 0) {
+      throw conflict('This plan has subscriptions. Set isActive to false instead of deleting it.');
+    }
     await repos.plans.remove(planId);
     return { message: 'Plan deleted' };
   }
@@ -173,6 +250,7 @@ export class PaymentService {
     const plan = await this.getPlan(planId);
     if (!plan.isActive) throw badRequest('This plan is not available');
     if (!this.isPaidPlan(plan)) throw badRequest('Choose a paid plan to access courses');
+    if (this.isPlanExpired(plan)) throw badRequest('This plan has ended');
 
     const active = await this.currentSubscription(userId);
     if (active) {
@@ -240,13 +318,17 @@ export class PaymentService {
     }
 
     const plan = await this.getPlan(planId);
-    const startsAt = new Date();
+    const now = new Date();
+    const plannedStart = this.planStartsAt(plan) ? new Date(this.planStartsAt(plan)) : now;
+    const startsAt = plannedStart > now ? plannedStart : now;
+    const plannedEnd = this.planEndsAt(plan) ? new Date(this.planEndsAt(plan)) : addDays(startsAt, plan.duration || 30);
+    if (plannedEnd <= startsAt) throw badRequest('This plan has ended');
     const subscription = await repos.subscriptions.create({
       userId,
       planId,
       status: SUBSCRIPTION_STATUS.ACTIVE,
       startsAt: startsAt.toISOString(),
-      endsAt: addDays(startsAt, plan.duration || 30).toISOString()
+      endsAt: plannedEnd.toISOString()
     });
 
     await this.expireOtherSubscriptions(userId, subscription.id);

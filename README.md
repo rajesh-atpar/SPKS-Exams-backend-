@@ -14,7 +14,7 @@ Express + Supabase backend for the SPKS mobile app and admin panel.
 ## Setup
 
 1. Copy `.env.example` to `.env.local` and fill in Supabase, JWT, and optional Razorpay keys.
- 2. Run `database/schema.sql` in the Supabase SQL editor for a new database. For an existing database, run `database/migrations/2026-09-17-missing-features.sql`, `database/migrations/2026-09-18-lesson-pdfs.sql`, and `database/migrations/2026-09-19-uploads-bucket.sql` instead. The last file creates the public `uploads` Storage bucket required for lesson PDFs.
+ 2. Run `database/schema.sql` in the Supabase SQL editor for a new database. For an existing database, run `database/migrations/2026-09-17-missing-features.sql`, `database/migrations/2026-09-18-lesson-pdfs.sql`, `database/migrations/2026-09-19-uploads-bucket.sql`, and `database/migrations/2026-09-19-plan-dates.sql` instead. The uploads migration creates the public `uploads` Storage bucket required for lesson PDFs. The plan-dates migration adds `starts_at` / `ends_at` on `plans`.
 3. Install and start:
 
 ```bash
@@ -156,8 +156,8 @@ All `/api/admin/*` routes except login/forgot/reset/refresh require a staff Bear
 | Results | GET | `/api/admin/tests/:testId/results` |
 | Results | GET | `/api/admin/attempts/:attemptId/result` |
 | Analytics | GET | `/api/admin/analytics/overview` `/users` `/courses` `/tests` `/revenue` |
-| Plans | GET/POST | `/api/admin/plans` |
-| Plans | PATCH/DELETE | `/api/admin/plans/:planId` |
+| Plans | GET/POST | `/api/admin/plans` (`name`, `amount` or `price`, `startDate`, `endDate`) |
+| Plans | GET/PATCH/DELETE | `/api/admin/plans/:planId` |
 | Billing | GET | `/api/admin/subscriptions` `/api/admin/payments` |
 | FAQs | GET/POST | `/api/admin/faqs` |
 | FAQs | GET/PATCH/DELETE | `/api/admin/faqs/:faqId` |

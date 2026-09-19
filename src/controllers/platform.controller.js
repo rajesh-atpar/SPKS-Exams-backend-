@@ -130,6 +130,10 @@ export const adminListPlans = asyncHandler(async (req, res) => {
   return paginatedResponse(res, 'Plans fetched successfully', data.items, data);
 });
 
+export const adminGetPlan = asyncHandler(async (req, res) => {
+  return successResponse(res, 'Plan fetched successfully', await paymentService.getPlan(req.params.planId));
+});
+
 export const adminCreatePlan = asyncHandler(async (req, res) => {
   return successResponse(res, 'Plan created', await paymentService.createPlan(req.body), HTTP_STATUS.CREATED);
 });

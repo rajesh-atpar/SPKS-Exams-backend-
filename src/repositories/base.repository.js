@@ -28,7 +28,7 @@ export class BaseRepository {
       isNetworkFailure
         ? `Database unreachable${causeCode ? ` (${causeCode})` : ''}: ${causeMessage || 'fetch failed'}`
         : missingColumn
-          ? `Missing database column '${missingColumn}' on '${this.table}'. Run database/migrations/2026-09-18-lesson-pdfs.sql, then NOTIFY pgrst, 'reload schema';`
+          ? `Missing database column '${missingColumn}' on '${this.table}'. Run the latest file in database/migrations/, then NOTIFY pgrst, 'reload schema';`
           : isMissingTable
             ? `Missing database table '${this.table}'. Run database/schema.sql in the Supabase SQL editor.`
             : (error.message || 'Database error')
