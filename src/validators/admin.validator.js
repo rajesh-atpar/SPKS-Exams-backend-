@@ -4,6 +4,7 @@ import { CONTENT_TYPES, CURRENT_AFFAIR_CATEGORIES, TICKET_STATUS, USER_ROLES, US
 const optionalUuid = (field) => body(field).optional({ values: 'falsy' }).isUUID().withMessage(`Invalid ${field}`);
 const optionalBoolean = (field) => body(field).optional().isBoolean().withMessage(`${field} must be a boolean`).toBoolean();
 const optionalInt = (field) => body(field).optional().isInt({ min: 0 }).withMessage(`${field} must be a non-negative integer`).toInt();
+const optionalFloat = (field) => body(field).optional().isFloat({ min: 0 }).withMessage(`${field} must be 0 or more (for example 1.5)`).toFloat();
 
 export const courseBodyValidator = [
   body('name').trim().isLength({ min: 1, max: 255 }).withMessage('Name is required'),
@@ -228,7 +229,7 @@ export const testBodyValidator = [
   optionalUuid('groupId'),
   optionalUuid('subjectId'),
   optionalInt('duration'),
-  optionalInt('passingMarks'),
+  optionalFloat('passingMarks'),
   optionalBoolean('isPremium'),
   optionalBoolean('isPublished')
 ];
@@ -240,7 +241,7 @@ export const testUpdateValidator = [
   optionalUuid('groupId'),
   optionalUuid('subjectId'),
   optionalInt('duration'),
-  optionalInt('passingMarks'),
+  optionalFloat('passingMarks'),
   optionalBoolean('isPremium'),
   optionalBoolean('isPublished')
 ];
@@ -273,7 +274,7 @@ export const questionBodyValidator = [
   body('correctAnswer').trim().isLength({ min: 1 }).withMessage('correctAnswer is required'),
   body('questionImage').optional({ values: 'falsy' }).isString(),
   body('explanation').optional().isString(),
-  optionalInt('marks'),
+  optionalFloat('marks'),
   body('negativeMarks').optional().isFloat({ min: 0 }).withMessage('negativeMarks must be >= 0').toFloat(),
   optionalInt('questionNumber')
 ];
@@ -284,7 +285,7 @@ export const questionUpdateValidator = [
   body('correctAnswer').optional().trim().isLength({ min: 1 }),
   body('questionImage').optional({ values: 'falsy' }).isString(),
   body('explanation').optional().isString(),
-  optionalInt('marks'),
+  optionalFloat('marks'),
   body('negativeMarks').optional().isFloat({ min: 0 }).toFloat(),
   optionalInt('questionNumber')
 ];
