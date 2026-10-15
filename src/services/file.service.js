@@ -216,6 +216,7 @@ export class FileService {
     res.setHeader('Cache-Control', 'private, max-age=300');
     res.setHeader('X-Robots-Tag', 'noindex');
     res.removeHeader('X-Frame-Options');
+    res.removeHeader('Content-Security-Policy');
   }
 
   async streamPdf(res, { filePath, fileUrl, filename = 'document.pdf' }) {

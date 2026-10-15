@@ -9,7 +9,8 @@ import progressService from './progress.service.js';
 const published = (admin) => (admin ? {} : { isPublished: true });
 
 const apiPath = (path) => {
-  const base = String(process.env.API_BASE_URL || '').replace(/\/+$/, '');
+  const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  const base = String(process.env.API_BASE_URL || (vercelHost ? `https://${vercelHost}` : '')).replace(/\/+$/, '');
   return base ? `${base}${path}` : path;
 };
 

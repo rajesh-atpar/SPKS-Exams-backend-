@@ -21,6 +21,10 @@ export const authenticate = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
+      if (req.allowQueryToken && typeof req.query?.token === 'string' && req.query.token) {
+        req.headers.authorization = `Bearer ${req.query.token}`;
+        return authenticate(req, res, next);
+      }
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
         message: 'No token provided',
@@ -59,6 +63,12 @@ export const authenticate = async (req, res, next) => {
       code: ERROR_CODES.AUTHENTICATION_ERROR
     });
   }
+};
+
+// PDF viewers and WebViews open URLs directly and cannot send an Authorization header.
+export const allowQueryToken = (req, _res, next) => {
+  req.allowQueryToken = true;
+  next();
 };
 
 export const optionalAuth = async (req, res, next) => {
